@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <link rel="icon" href="/image/logo/tutwuri-logo.svg">
-    <title>BOE-Sport Space | Admin Dashboard</title>
+    <title>BOE-Space Reserve | Admin Dashboard</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -41,56 +41,123 @@
     @include('admin.dashboard.layouts.sidebar')
 
     <main class="flex-1 md:ml-64 p-6 md:p-10">
-        <header class="mb-10">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                
-                <div class="flex items-center justify-between md:justify-start gap-4 flex-1">
-                    <div class="relative">
-                        <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-[#1265A8] to-transparent rounded-full opacity-50 hidden md:block"></div>
-                        
-                        <h2 class="text-2xl md:text-3xl font-black tracking-tight text-slate-800 flex items-center gap-3">
-                            <span class="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-[#1265A8] to-[#4292DC]">
-                                Data Fasilitas
-                            </span>
-                            
-                            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#1265A8] border border-blue-100 uppercase tracking-widest animate-pulse">
-                                Live
-                            </span>
-                        </h2>
-                        
-                        <p class="mt-1 text-slate-400 text-xs md:text-sm font-medium flex items-center">
-                            <svg class="w-4 h-4 mr-2 text-[#1265A8]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Selamat datang di <span class="text-slate-600 font-semibold mx-1">manajemen data fasilitas</span>.
-                        </p>
-                    </div>
-
-                    <button onclick="toggleSidebar()" 
-                        class="md:hidden p-3 bg-white rounded-xl border border-slate-100 text-[#1265A8] 
-                        transition-all duration-300 ease-out
-                        hover:bg-blue-50 hover:border-blue-200 hover:text-[#4292DC] 
-                        hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
-                        active:scale-95 group">
-                        
-                        <svg class="w-6 h-6 transition-transform duration-300 group-hover:rotate-180" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-                        </svg>
-                    </button>
-                </div>
-                
-                {{-- search --}}
-                @include('admin.dashboard.search.searchBar')
-                
-            </div>
-        </header>
+        @include('admin.dashboard.layouts.header', [
+            'headerTitle' => 'Data Fasilitas',
+            'headerSubtitle' => 'Selamat datang di manajemen data fasilitas.'
+        ])
         
         <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
-        <section x-data="{ openPreview: false, previewImg: '', previewTitle: '' }">
+        <section x-data="{ 
+            openPreview: false, 
+            previewImg: '', 
+            previewTitle: '',
+            maintenanceModal: false,
+            maintData: { id: null, name: '', start_date: '', end_date: '', reason: '' },
+            openMaintenanceModal(id, name) {
+                this.maintData = { id: id, name: name, start_date: new Date().toISOString().split('T')[0], end_date: '', reason: '' };
+                this.maintenanceModal = true;
+            },
+            submitMaintenance() {
+                const url = `/admin/fasilitas/${this.maintData.id}/maintenance`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        tgl_mulai: this.maintData.start_date,
+                        tgl_selesai: this.maintData.end_date,
+                        tujuan: this.maintData.reason
+                    })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        Swal.fire({
+                            title: 'Berhasil!',
+                            text: data.message,
+                            icon: 'success',
+                            confirmButtonColor: '#ef4444'
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire({
+                            title: 'Gagal!',
+                            text: data.message,
+                            icon: 'error',
+                            confirmButtonColor: '#ef4444'
+                        }).then(() => location.reload());
+                    }
+                })
+                .catch(err => {
+                    Swal.fire({
+                        title: 'Error!',
+                        text: 'Terjadi kesalahan sistem.',
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    }).then(() => location.reload());
+                });
+            },
+            handleMaintenanceToggle(id, name, isMaintenance) {
+                if (!isMaintenance) {
+                    this.openMaintenanceModal(id, name);
+                } else {
+                    this.cancelMaintenance(id, name);
+                }
+            },
+            cancelMaintenance(id, name) {
+                Swal.fire({
+                    title: 'Selesai Perbaikan?',
+                    text: `Apakah fasilitas ${name} sudah siap digunakan kembali?`,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#1265A8',
+                    cancelButtonColor: '#94a3b8',
+                    confirmButtonText: 'Ya, Batalkan!',
+                    cancelButtonText: 'Tutup',
+                    reverseButtons: true,
+                    customClass: { popup: 'rounded-[2rem] p-8' }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        const url = `/admin/fasilitas/${id}/cancel-maintenance`;
+                        fetch(url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            }
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire({
+                                    title: 'Berhasil!',
+                                    text: data.message,
+                                    icon: 'success',
+                                    confirmButtonColor: '#1265A8'
+                                }).then(() => location.reload());
+                            } else {
+                                Swal.fire({
+                                    title: 'Gagal!',
+                                    text: data.message,
+                                    icon: 'error',
+                                    confirmButtonColor: '#ef4444'
+                                });
+                            }
+                        })
+                        .catch(err => {
+                            Swal.fire({
+                                title: 'Error!',
+                                text: 'Terjadi kesalahan sistem.',
+                                icon: 'error',
+                                confirmButtonColor: '#ef4444'
+                            });
+                        });
+                    }
+                });
+            }
+        }">
             <div class="flex items-center justify-between mb-8">
                 <div class="flex flex-col gap-1.5 p-2">
                     <h3 class="text-2xl font-extrabold tracking-tight text-slate-800 leading-none">
@@ -139,7 +206,21 @@
                         
                         <img src="{{ asset('storage/fasilitas/' . $item->image) }}" 
                             alt="{{ $item['nama'] }}" 
-                            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-125"> <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
+                            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-125 {{ $item->is_maintenance ? 'grayscale brightness-75' : '' }}">
+                        
+                        @if($item->is_maintenance)
+                        <div class="absolute top-4 left-4 z-10 flex flex-col gap-2">
+                            <span class="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-[10px] font-black rounded-lg shadow-lg uppercase tracking-widest border border-red-400/30 backdrop-blur-md">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                </span>
+                                Mode Perbaikan
+                            </span>
+                        </div>
+                        @endif
+
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 flex items-center justify-center">
                             <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-white/20 backdrop-blur-md p-3 rounded-full border border-white/50">
                                 <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -158,8 +239,20 @@
                                 {{ $item->deskripsi }}
                             </p>
 
-
-
+                            <div class="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                <div class="flex flex-col">
+                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">Maintenance Mode</span>
+                                    <span class="text-[11px] font-bold {{ $item->is_maintenance ? 'text-red-600' : 'text-emerald-600' }}">
+                                        {{ $item->is_maintenance ? 'Sedang Perbaikan' : 'Siap Digunakan' }}
+                                    </span>
+                                </div>
+                                
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" class="sr-only peer" {{ $item->is_maintenance ? 'checked' : '' }}
+                                        @click.prevent="handleMaintenanceToggle({{ $item->id }}, '{{ addslashes($item->nama) }}', {{ $item->is_maintenance ? 'true' : 'false' }})">
+                                    <div class="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-red-500 transition-all"></div>
+                                </label>
+                            </div>
                         </div>
 
                         <div class="flex items-center justify-between gap-3 pt-4 border-t border-slate-50">
@@ -206,14 +299,75 @@
 
             {{-- MODAL PREVIEW (Akan muncul saat gambar diklik) --}}
             </div>
-        </section>
 
 
 
         <style>
             [x-cloak] { display: none !important; }
         </style>
-    </main>
+        {{-- MODAL MAINTENANCE --}}
+        <div x-show="maintenanceModal" x-cloak
+            class="fixed inset-0 z-[100] overflow-y-auto"
+            x-transition:enter="transition ease-out duration-300"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-200"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0">
+            
+            <div class="flex items-center justify-center min-h-screen p-4">
+                <div class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm" @click="maintenanceModal = false"></div>
+                
+                <div class="relative bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100"
+                    x-transition:enter="transition ease-out duration-300 transform"
+                    x-transition:enter-start="scale-90 opacity-0"
+                    x-transition:enter-end="scale-100 opacity-100">
+                    
+                    <div class="bg-red-600 p-8 text-white relative">
+                        <div class="absolute top-0 right-0 p-8 opacity-10">
+                            <svg class="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 3.45L19.55 19H4.45L12 5.45zM11 16h2v2h-2v-2zm0-7h2v5h-2V9z"/></svg>
+                        </div>
+                        <h3 class="text-2xl font-black mb-1">Mode Perbaikan</h3>
+                        <p class="text-red-100 text-sm font-medium">Fasilitas: <span x-text="maintData.name" class="font-bold underline text-white"></span></p>
+                    </div>
+
+                    <form id="maintForm" @submit.prevent="submitMaintenance" class="p-8 space-y-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest px-1">Mulai Dari</label>
+                                <input type="date" x-model="maintData.start_date" name="tgl_mulai" required
+                                    class="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest px-1">Sampai Dengan</label>
+                                <input type="date" x-model="maintData.end_date" name="tgl_selesai" required
+                                    class="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all">
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="text-[10px] uppercase font-black text-slate-400 tracking-widest px-1">Alasan Perbaikan</label>
+                            <textarea x-model="maintData.reason" name="tujuan" required rows="3" placeholder="Contoh: Renovasi lantai atau Perbaikan AC..."
+                                class="w-full px-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all resize-none"></textarea>
+                        </div>
+
+                        <div class="pt-4 flex items-center gap-3">
+                            <button type="button" @click="maintenanceModal = false" 
+                                class="flex-1 px-6 py-4 bg-slate-100 text-slate-500 rounded-2x border border-slate-200 font-bold text-sm hover:bg-slate-200 transition-all">
+                                Batal
+                            </button>
+                            <button type="submit" 
+                                class="flex-[2] px-6 py-4 bg-red-600 text-white rounded-2xl font-black text-sm hover:bg-red-700 hover:shadow-lg hover:shadow-red-600/30 transition-all flex items-center justify-center gap-2">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                Blokir Jadwal
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
 
     {{-- Back to Top Button --}}
     <button id="backToTop" 

@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Penyewa extends Model
 {
-    protected $fillable = ['nama', 'whatsapp', 'email'];
+    protected $fillable = ['nama', 'whatsapp', 'email', 'provinsi', 'kabupaten', 'foto_identitas'];
 
     public function bookings()
     {

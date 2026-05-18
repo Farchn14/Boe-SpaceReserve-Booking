@@ -185,11 +185,13 @@
                                             </div>
                                             <input :id="'galleryInput' + i" :name="'gallery[' + i + ']'" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-35" 
                                                 @change="
-                                                    const file = $event.target.files[0];
-                                                    if (file) {
-                                                        const reader = new FileReader();
-                                                        reader.onload = (e) => galleryPreviews[i] = e.target.result;
-                                                        reader.readAsDataURL(file);
+                                                    if (window.validateGalleryFile($event.target, i)) {
+                                                        const file = $event.target.files[0];
+                                                        if (file) {
+                                                            const reader = new FileReader();
+                                                            reader.onload = (e) => galleryPreviews[i] = e.target.result;
+                                                            reader.readAsDataURL(file);
+                                                        }
                                                     }
                                                 ">
                                         </div>
@@ -249,10 +251,45 @@
             const uiContent = document.getElementById('ui-content');
             const dropzone = document.getElementById('dropzone');
 
+            // LIMITS (Match PHP configuration)
+            const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+            const MAX_POST_SIZE = 8 * 1024 * 1024; // 8MB
+
+            function formatBytes(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function checkTotalSize() {
+                let total = 0;
+                // Check main image
+                if (fileInput.files[0]) total += fileInput.files[0].size;
+                // Check gallery images
+                for (let i = 0; i < 3; i++) {
+                    const galInput = document.getElementById('galleryInput' + i);
+                    if (galInput && galInput.files[0]) total += galInput.files[0].size;
+                }
+                return total;
+            }
+
             // 1. Preview Gambar Utama
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];
                 if (file) {
+                    if (file.size > MAX_FILE_SIZE) {
+                        Swal.fire({
+                            title: 'File Terlalu Besar',
+                            text: `Ukuran file (${formatBytes(file.size)}) melebihi batas 2MB.`,
+                            icon: 'warning',
+                            confirmButtonColor: '#1d6fa5'
+                        });
+                        this.value = '';
+                        return;
+                    }
+
                     const reader = new FileReader();
                     reader.onload = function(e) {
                         preview.src = e.target.result;
@@ -284,6 +321,18 @@
             // logika simpan data
             btnSimpan.closest('form').addEventListener('submit', function (e) {
                 e.preventDefault(); 
+
+                // Check total size before asking
+                const totalSize = checkTotalSize();
+                if (totalSize > MAX_POST_SIZE) {
+                    Swal.fire({
+                        title: 'Total Data Terlalu Besar',
+                        text: `Total ukuran gambar (${formatBytes(totalSize)}) melebihi batas server (8MB). Harap perkecil ukuran foto atau unggah satu per satu.`,
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444'
+                    });
+                    return;
+                }
 
                 Swal.fire({
                     title: 'Simpan Data?',
@@ -322,19 +371,28 @@
                     method: 'POST',
                     body: formData,
                     headers: {
-                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value
+                        'X-CSRF-TOKEN': document.querySelector('input[name="_token"]').value,
+                        'Accept': 'application/json'
                     }
                 })
                 .then(async response => {
-                    const data = await response.json();
-                    if (!response.ok) {
-                        // Handle Validation Errors (422)
-                        if (response.status === 422 && data.errors) {
-                            let errorMessages = Object.values(data.errors).flat().join('\n');
-                            throw new Error(errorMessages);
-                        }
-                        throw new Error(data.message || 'Gagal menyimpan data');
+                    // Cek tipe konten respon
+                    const contentType = response.headers.get("content-type");
+                    let data = null;
+
+                    if (contentType && contentType.includes("application/json")) {
+                        data = await response.json();
                     }
+
+                    if (!response.ok) {
+                        // Jika ada data JSON dari backend (seperti error validasi)
+                        if (data && data.message) {
+                            throw new Error(data.message);
+                        }
+                        // Default error if not JSON or no message
+                        throw new Error(`Server error: ${response.status}`);
+                    }
+                    
                     return data;
                 })
                 .then(data => {
@@ -373,7 +431,21 @@
                 });
             }
 
-            // logika konfirmasi batal (legacy elements removed - handled by btn-batal-venue)
+            // Global access for gallery inputs validation
+            window.validateGalleryFile = function(input, index) {
+                const file = input.files[0];
+                if (file && file.size > MAX_FILE_SIZE) {
+                    Swal.fire({
+                        title: 'File Terlalu Besar',
+                        text: `Gambar galeri ${index + 1} (${formatBytes(file.size)}) melebihi batas 2MB.`,
+                        icon: 'warning',
+                        confirmButtonColor: '#1d6fa5'
+                    });
+                    input.value = '';
+                    return false;
+                }
+                return true;
+            };
         });
 
         const btnBatalVenue = document.getElementById('btn-batal-venue');

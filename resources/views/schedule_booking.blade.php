@@ -1,268 +1,451 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="icon" href="/image/logo/tutwuri-logo.svg">
-    <title>BOE-Space Reserve</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>BOE-Space Reserve | Jadwal Pembookingan</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
+        [x-cloak] { display: none !important; }
+
+        /* ── Calendar Grid ── */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
         }
 
-        .hide-scrollbar::-webkit-scrollbar { 
-            display: none; 
+        .cal-day {
+            min-height: 60px;
+            border-radius: 14px;
+            position: relative;
+            transition: transform 0.18s cubic-bezier(.4,0,.2,1), box-shadow 0.18s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            user-select: none;
+        }
+        @media (min-width: 768px) { .cal-day { min-height: 80px; font-size: 15px; } }
+
+        .cal-day.other-month { opacity: .28; pointer-events: none; }
+        .cal-day.today-marker::after {
+            content: ''; position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+            width: 5px; height: 5px; border-radius: 50%; background: #1265A8;
         }
 
-        .hide-scrollbar { 
-            -ms-overflow-style: none; 
-            scrollbar-width: none; 
-        }
+        /* ── Status Colors (Mirrored from Admin) ── */
+        /* ── Status Colors (Unified Status) ── */
+        .status-ready       { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; } /* GREEN */
+        .status-pending     { background: #fef9c3; color: #854d0e; border: 1px solid #fef08a; } /* YELLOW (Pending) */
+        .status-booked      { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; } /* BLUE (Booked) */
+        .status-blocked     { background: #1e293b; color: #f1f5f9; border: 1px solid #0f172a; } /* BLACK */
+        .status-maintenance { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; } /* RED */
+        .status-past        { background: #f1f5f9; color: #94a3b8; border: 1px solid #e2e8f0; } /* GREY */
 
-        .custom-scrollbar::-webkit-scrollbar { 
-            width: 4px; 
+        .status-tooltip {
+            position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+            background: #1e293b; color: #fff; font-size: 10px; font-weight: 600;
+            padding: 4px 10px; border-radius: 8px; white-space: nowrap;
+            pointer-events: none; opacity: 0; transition: opacity .2s;
+            z-index: 50;
         }
+        .cal-day:hover .status-tooltip { opacity: 1; }
+        @media (min-width: 768px) { .cal-day:hover { transform: scale(1.04); z-index: 10; } }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb { 
-            background: #cbd5e1; 
-            border-radius: 10px; 
-        }
-        
-        /* Utility untuk animasi manual via JS */
-        .animate-content {
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+        /* Custom Scrollbar for Dropdown */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
+<body class="min-h-screen">
+    
+    <x-layout.navbar />
 
-<body class="bg-slate-50 min-h-screen p-4 md:p-8">
-
-    <div id="confirmModal" class="fixed inset-0 z-[999] hidden">
-        <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div id="modalContent" class="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl transform transition-all scale-95 opacity-0 duration-300">
-                <div class="text-center">
-                    <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-amber-50 mb-6">
-                        <svg class="h-8 w-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+    <main class="max-w-6xl mx-auto px-4 pt-32 pb-12" 
+        x-data="scheduleManager({
+            facilities: {{ $facilities->toJson() }},
+            initialFasilitasId: {{ $selectedFasilitasId ?? 'null' }}
+        })"
+        x-cloak>
+        
+        {{-- ═══ HEADER ═══ --}}
+        <header class="mb-8">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-[#1265A8] rounded-full text-[10px] font-bold uppercase tracking-widest mb-3 border border-blue-100">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-[#1265A8]"></span>
+                        </span>
+                        Live Schedule
                     </div>
-                    <h3 class="text-xl font-extrabold text-slate-800 mb-2">Tinggalkan Halaman?</h3>
-                    <p class="text-sm text-slate-500 mb-8 leading-relaxed">Pastikan perubahan Anda telah disimpan.</p>
-                    <div class="flex flex-col gap-3">
-                        <button onclick="executeBack(this)" class="w-full py-4 bg-red-500 hover:bg-red-600 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95">Ya, Tinggalkan</button>
-                        <button onclick="toggleModal(false)" class="w-full py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all">Batal</button>
-                    </div>
+                    <h1 class="text-3xl md:text-4xl font-black text-slate-800 tracking-tight leading-none">Cek Ketersediaan Room</h1>
+                    <p class="mt-2 text-slate-500 text-sm font-medium italic">Pantau jadwal pemakaian fasilitas secara real-time.</p>
                 </div>
+
+                {{-- Facility Detail Button --}}
+                <a href="/#booking" class="px-6 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-extrabold text-[#1265A8] hover:bg-slate-50 transition-all shadow-sm">
+                    Kembali ke List Room
+                </a>
             </div>
-        </div>
-    </div>
+        </header>
 
-    <div class="max-w-6xl mx-auto space-y-6">
-        <div class="flex items-center justify-between">
-            <button onclick="toggleModal(true)" class="group flex items-center gap-3 px-5 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-red-200 transition-all">
-                <div class="p-1 bg-slate-50 group-hover:bg-red-50 rounded-lg">
-                    <svg class="w-5 h-5 text-slate-500 group-hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-                    </svg>
-                </div>
-                <span class="text-sm font-bold text-slate-600 group-hover:text-red-600">Kembali</span>
-            </button>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <div class="bg-[#1265A8] p-1.5 rounded-full shadow-lg">
-                <svg class="w-3.5 h-3.5 text-white fill-current" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                </svg>
-            </div>
-            <h2 class="text-[#1265A8] font-extrabold text-lg uppercase tracking-wider">Schedule Pembookingan</h2>
-        </div>
-
-        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-4 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
-            <div class="flex items-center w-full lg:max-w-[700px] overflow-hidden">
-                <div class="flex items-center flex-shrink-0 bg-white z-10 pr-2">
-                    <div class="relative w-10 h-10 group">
-                        <input type="date" id="calendarPicker" value="2026-03-05" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-20">
-                        <div class="absolute inset-0 p-2 border border-slate-200 rounded-xl bg-white flex items-center justify-center group-hover:bg-slate-50 transition-colors z-10">
-                            <svg class="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                        </div>
+            {{-- ═══ LEFT SIDE: CONTROL & LEGEND ═══ --}}
+            <div class="lg:col-span-4 space-y-6">
+                
+                {{-- Selector Card --}}
+                <div class="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-100">
+                    <label class="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 block">Pilih Fasilitas</label>
+                    
+                    <div class="space-y-3">
+                        <template x-for="f in facilities" :key="f.id">
+                            <button @click="selectFacility(f.id)" 
+                                class="w-full text-left px-5 py-5 rounded-[1.5rem] border-2 transition-all duration-500 group relative overflow-hidden"
+                                :class="selectedId == f.id ? 'border-[#1265A8] bg-blue-50/50 shadow-lg shadow-blue-100' : 'border-slate-50 hover:border-slate-200 bg-slate-50/30'">
+                                
+                                <div class="flex items-center justify-between relative z-10">
+                                    <div class="flex flex-col">
+                                        <span class="text-xs font-black uppercase tracking-widest text-[#1265A8] mb-1 opacity-60" x-text="f.tipe"></span>
+                                        <span class="text-[15px] font-black tracking-tight" 
+                                            :class="selectedId == f.id ? 'text-[#1265A8]' : 'text-slate-600'"
+                                            x-text="f.nama"></span>
+                                    </div>
+                                    
+                                    <template x-if="selectedId == f.id">
+                                        <div class="bg-[#1265A8] text-white p-1 rounded-full shadow-lg scale-100 transition-transform duration-500" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="scale-0" x-transition:enter-end="scale-100">
+                                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                {{-- Active State Background Accent --}}
+                                <div x-show="selectedId == f.id" x-transition.opacity class="absolute top-0 right-0 w-24 h-24 bg-blue-100/30 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2"></div>
+                            </button>
+                        </template>
                     </div>
-                    <div class="h-10 w-px bg-slate-100 mx-4"></div>
                 </div>
 
-                <div id="dateList" class="flex items-center gap-2 overflow-x-auto hide-scrollbar scroll-smooth flex-grow py-2">
+                {{-- Actions Check (Integrated - Hidden by default) --}}
+                <div x-show="selectedId" x-transition:enter="transition ease-out duration-700" x-transition:enter-start="opacity-0 translate-y-10" x-transition:enter-end="opacity-100 translate-y-0"
+                    class="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl shadow-blue-900/20 relative overflow-hidden border border-white/5">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
+                    
+                    <h3 class="text-xs font-black uppercase tracking-[0.3em] mb-8 text-blue-400">Keterangan Status</h3>
+                    <div class="grid grid-cols-1 gap-4">
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-emerald-400 border border-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)]"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-emerald-50 uppercase tracking-widest">Tersedia (Ready)</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Unit siap untuk digunakan/dipesan.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-yellow-400 border border-yellow-300 shadow-[0_0_10px_rgba(250,204,21,0.3)]"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-yellow-50 uppercase tracking-widest">Pending Konfirmasi</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Dalam proses validasi oleh administrator.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-blue-400 border border-blue-300 shadow-[0_0_10px_rgba(96,165,250,0.3)]"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-blue-50 uppercase tracking-widest">Sudah Terbooking</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Jadwal telah dikonfirmasi dan tidak tersedia.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-red-400 border border-red-300 shadow-[0_0_10px_rgba(248,113,113,0.3)]"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-red-50 uppercase tracking-widest">Maintenance (Repair)</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Pemeliharaan rutin atau perbaikan unit.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-slate-900 border border-slate-700 shadow-[0_0_10px_rgba(0,0,0,0.3)]"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-slate-100 uppercase tracking-widest">Blokir / Locked</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Jadwal dikunci untuk penggunaan internal.</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 hover:bg-white/10 transition-colors">
+                            <div class="w-4 h-4 rounded-full bg-slate-100 border border-slate-200"></div>
+                            <div class="flex flex-col">
+                                <span class="text-[11px] font-black text-slate-300 uppercase tracking-widest">Tanggal Terlewati</span>
+                                <span class="text-[9px] text-white/40 font-medium italic">Hari sebelum tanggal hari ini.</span>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="mt-10 p-5 bg-[#1265A8]/20 rounded-3xl border border-[#1265A8]/30 backdrop-blur-sm relative z-10">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-[10px] leading-relaxed text-blue-100 font-medium">
+                                <span class="font-black text-white block mb-1 uppercase tracking-widest">Informasi Privasi:</span>
+                                Identitas penyewa disamarkan. Silakan hubungi pusat bantuan kami jika diperlukan.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="flex items-center gap-6 w-full md:w-auto border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
-                <div class="relative inline-block text-left w-full" x-data="{ open: false }" @click.away="open = false">
-                    <button @click="open = !open" class="w-full group flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#1265A8]/30 transition-all duration-300">
-                        <div class="flex items-center justify-center w-8 h-8 rounded-xl bg-blue-50 group-hover:bg-[#1265A8] transition-colors">
-                            <svg class="w-4 h-4 text-[#1265A8] group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                            </svg>
+            {{-- ═══ RIGHT SIDE: CALENDAR GRID (Revealed Section) ═══ --}}
+            <div class="lg:col-span-8 space-y-6">
+                
+                <div class="bg-white rounded-[3rem] shadow-sm border border-slate-100 p-8 md:p-12 relative overflow-hidden min-h-[600px] flex flex-col">
+                    {{-- Decorative Background --}}
+                    <div class="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+                    
+                    {{-- Placeholder State --}}
+                    <div x-show="!selectedId" x-transition.opacity class="flex-1 flex flex-col items-center justify-center text-center p-10 relative z-10">
+                        <div class="w-24 h-24 bg-blue-50 text-blue-200 rounded-[2rem] flex items-center justify-center mb-6">
+                            <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                         </div>
-                        <div class="flex flex-col items-start leading-none">
-                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Fasilitas</span>
-                            <span id="dropdownLabel" class="text-sm font-extrabold text-slate-700 group-hover:text-[#1265A8]">Asrama Tunggul Ametung</span>
-                        </div>
-                        <div class="ml-auto pl-3 border-l border-slate-100">
-                            <svg class="w-4 h-4 text-slate-400 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </div>
-                    </button>
+                        <h3 class="text-xl font-black text-slate-800 uppercase tracking-tight mb-2">Lihat Kalender Fasilitas</h3>
+                        <p class="text-sm text-slate-400 font-medium max-w-xs mx-auto">Pilih Fasilitas Terlebih Dahulu Untuk Melihat Jadwal Ketersediaan Secara Real-Time.</p>
+                    </div>
 
-                    <div x-show="open" x-transition class="absolute right-0 mt-2 w-64 origin-top-right bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                        <div class="py-2">
-                            <div class="px-4 py-2 border-b border-slate-50 mb-1">
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Daftar Fasilitas</p>
+                    {{-- Calendar Content (Revealed) --}}
+                    <div x-show="selectedId" x-transition:enter="transition ease-out duration-700" x-transition:enter-start="opacity-0 translate-x-10" x-transition:enter-end="opacity-100 translate-x-0" class="flex-1 flex flex-col">
+                        {{-- Calendar Header --}}
+                        <div class="flex items-center justify-between mb-12 relative z-10">
+                            <div class="flex items-center gap-4">
+                                <button @click="changeMonth(-1)" class="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl hover:bg-[#1265A8] hover:text-white transition-all shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <div class="text-center min-w-[200px]">
+                                    <h2 class="text-2xl font-black text-slate-800 uppercase tracking-tighter" x-text="monthName"></h2>
+                                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]" x-text="currentYear"></p>
+                                </div>
+                                <button @click="changeMonth(1)" class="w-12 h-12 flex items-center justify-center bg-slate-50 rounded-2xl hover:bg-[#1265A8] hover:text-white transition-all shadow-sm">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
                             </div>
-                            <button @click="open = false" onclick="pilihFasilitas('asrama_a')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Asrama Tunggul Ametung</button>
-                            <button @click="open = false" onclick="pilihFasilitas('asrama_b')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Asrama Ken Umang</button>
-                            <button @click="open = false" onclick="pilihFasilitas('asrama_c')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Asrama Kendedes</button>
-                            <button @click="open = false" onclick="pilihFasilitas('asrama_d')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Asrama Ken Arok</button>
-                            <button @click="open = false" onclick="pilihFasilitas('asrama_e')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Asrama Kertajaya</button>
-                            <button @click="open = false" onclick="pilihFasilitas('aula')" class="w-full text-left flex items-center px-4 py-3 text-xs font-bold text-slate-600 hover:bg-blue-50 hover:text-[#1265A8] transition-all">Aula Utama</button>
+                            <button @click="goToday()" class="px-6 py-3 text-[11px] font-black bg-slate-900 text-white rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg tracking-widest">HARI INI</button>
                         </div>
+
+                        {{-- Day of Week --}}
+                        <div class="grid grid-cols-7 gap-1 mb-6 relative z-10">
+                            @foreach(['Min','Sen','Sel','Rab','Kam','Jum','Sab'] as $day)
+                            <div class="text-center text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] py-2">{{ $day }}</div>
+                            @endforeach
+                        </div>
+
+                        {{-- Grid Content --}}
+                        <div class="calendar-grid relative z-10 min-h-[400px]">
+                            {{-- Loading Overlay --}}
+                            <div x-show="isLoading" class="absolute inset-0 z-50 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center gap-5 transition-all">
+                                <div class="w-12 h-12 border-4 border-slate-100 border-t-[#1265A8] rounded-full animate-spin"></div>
+                                <div class="flex flex-col items-center gap-1">
+                                    <p class="text-[11px] font-black text-[#1265A8] uppercase tracking-[0.3em] animate-pulse">Sinkronisasi Data</p>
+                                    <p class="text-[9px] font-medium text-slate-400 italic">Mohon tunggu sebentar...</p>
+                                </div>
+                            </div>
+
+                            <template x-for="(day, index) in daysInMonth" :key="index">
+                                <div class="cal-day transition-all group" 
+                                    :class="[
+                                        day.isOther ? 'other-month opacity-20 pointer-events-none' : '',
+                                        day.statusClass ? day.statusClass : 'status-ready',
+                                        day.isToday && !day.isOther ? 'today-marker shadow-inner ring-2 ring-[#1265A8]/10' : ''
+                                    ]">
+                                    
+                                    <span class="relative z-10" x-text="day.day"></span>
+                                    
+                                    {{-- Tooltip --}}
+                                    <template x-if="!day.isOther && day.tooltip">
+                                        <div class="status-tooltip" x-text="day.tooltip"></div>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Action Card (Revealed / Prompt Card) --}}
+                <div x-show="selectedId" x-transition:enter="transition ease-out duration-700" x-transition:enter-start="opacity-0 translate-y-10" x-transition:enter-end="opacity-100 translate-y-0"
+                    class="bg-gradient-to-br from-[#1265A8] to-[#276AD7] rounded-[3rem] p-10 flex flex-col lg:flex-row items-center justify-between gap-10 relative overflow-hidden group shadow-2xl shadow-blue-500/20">
+                    {{-- Animated background elements --}}
+                    <div class="absolute top-0 right-0 -translate-y-1/2 translate-x-1/4 w-80 h-80 bg-white/10 rounded-full blur-[100px] group-hover:scale-150 transition-transform duration-1000"></div>
+                    <div class="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/4 w-64 h-64 bg-blue-400/20 rounded-full blur-[80px]"></div>
+                    
+                    <div class="relative z-10 text-center lg:text-left max-w-xl">
+                        <div class="inline-flex items-center gap-3 px-4 py-2 bg-white/10 rounded-full border border-white/20 mb-6">
+                            <span class="relative flex h-3 w-3">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                            </span>
+                            <span class="text-white font-black uppercase tracking-[0.2em] text-[10px]">Ready to Reservate</span>
+                        </div>
+                        <h4 class="text-white text-3xl md:text-4xl font-black mb-4 leading-tight tracking-tighter">Sudah Menemukan Jadwal Kosong?</h4>
+                        <p class="text-blue-100 text-lg font-medium opacity-90 leading-relaxed">Lanjutkan ke pengisian form reservasi sekarang juga.</p>
+                    </div>
+                    
+                    <div class="relative z-10 shrink-0">
+                        <a :href="'{{ route('formBooking') }}?id=' + selectedId" 
+                            class="px-12 py-6 bg-white text-[#1265A8] font-black rounded-[2rem] shadow-[0_20px_40px_rgba(255,255,255,0.2)] hover:bg-slate-900 hover:text-white hover:-translate-y-2 transition-all active:scale-95 text-xs uppercase tracking-[0.3em] flex items-center gap-4 group/btn">
+                            Booking Room Ini
+                            <svg class="w-5 h-5 group-hover/btn:translate-x-2 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </a>
                     </div>
                 </div>
             </div>
         </div>
+    </main>
 
-        <div class="bg-white rounded-[40px] shadow-xl overflow-hidden border border-slate-100 flex flex-col lg:flex-row min-h-[500px]">
-            
-            <div class="lg:w-[45%] relative p-6 overflow-hidden">
-                <div id="imageWrapper" class="w-full h-full min-h-[300px] lg:min-h-full relative overflow-hidden rounded-[30px] group animate-content">
-                    <img id="displayImage" src="/image/pictures/booking/tunggul_ametung/ametung.png" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt="Fasilitas">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60"></div>
-                    <div class="absolute bottom-6 left-6">
-                        <span id="displayID" class="px-4 py-2 bg-white/20 backdrop-blur-md border border-white/30 rounded-full text-white text-[10px] font-bold uppercase tracking-widest">ID: #ASR-A01</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="lg:w-[55%] p-8 md:p-10 flex flex-col justify-between">
-                <div id="textWrapper" class="space-y-6 animate-content">
-                    <div>
-                        <div class="flex items-center justify-between mb-2">
-                            <h1 id="displayTitle" class="text-2xl md:text-3xl font-extrabold text-slate-800 leading-tight">Asrama Tunggul Ametung</h1>
-                            <span id="displayFloor" class="flex-shrink-0 px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-bold uppercase rounded-lg">Gedung A</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-2 h-2 rounded-full bg-[#1265A8]"></div>
-                            <p class="text-[#9BB7D9] text-[11px] font-bold uppercase tracking-widest">Jadwal Operasional • 05 Maret 2026</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[350px] overflow-y-auto pr-2 custom-scrollbar">
-                        
-                        <div class="p-4 border-2 rounded-[24px] bg-white border-slate-50 hover:border-[#1265A8] transition-all cursor-pointer group/slot">
-                            <span class="block text-[9px] font-bold mb-1 text-[#1265A8]">STATUS</span>
-                            <h4 class="font-extrabold text-base text-slate-800">Unit 01</h4>
-                            <div class="flex items-center gap-1.5 mt-2">
-                                <div class="w-1.5 h-1.5 rounded-full bg-green-500"></div>
-                                <p class="text-[9px] font-bold uppercase text-green-600">Tersedia</p>
-                            </div>
-                        </div>
-
-                        <div class="p-4 border-2 rounded-[24px] bg-slate-50 border-slate-100 opacity-60 cursor-not-allowed">
-                            <span class="block text-[9px] font-bold mb-1 text-slate-400">STATUS</span>
-                            <h4 class="font-extrabold text-base text-slate-800">Unit 02</h4>
-                            <div class="flex items-center gap-1.5 mt-2">
-                                <div class="w-1.5 h-1.5 rounded-full bg-red-400"></div>
-                                <p class="text-[9px] font-bold uppercase text-red-400">Penuh</p>
-                            </div>
-                        </div>
-
-                        </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
-        const dataFasilitas = {
-            asrama_a: { nama: "Asrama Tunggul Ametung", id: "#ASR-A01", lantai: "Gedung A", img: "/image/pictures/booking/tunggul_ametung/ametung.png" },
-            asrama_b: { nama: "Asrama Ken Umang", id: "#ASR-A02", lantai: "Gedung B", img: "/image/pictures/booking/ken_umang/umang.png" },
-            asrama_c: { nama: "Asrama Kendedes", id: "#ASR-A03", lantai: "Gedung C", img: "/image/pictures/booking/kendedes/dedes.png" },
-            asrama_d: { nama: "Asrama Ken Arok", id: "#ASR-A04", lantai: "Gedung D", img: "/image/pictures/booking/ken_arok/arok.png" },
-            asrama_e: { nama: "Asrama Kertajaya", id: "#ASR-A05", lantai: "Gedung E", img: "/image/pictures/booking/kertajaya/jaya.png" },
-            aula: { nama: "Aula Utama", id: "#AUL-A01", lantai: "Lantai Dasar", img: "/image/pictures/booking/aula/la.png" }
-        };
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('scheduleManager', (config) => ({
+                facilities: config.facilities,
+                selectedId: config.initialFasilitasId,
+                showCalendar: !!config.initialFasilitasId,
+                isLoading: false,
+                currentYear: new Date().getFullYear(),
+                currentMonth: new Date().getMonth() + 1,
+                daysInMonth: [],
+                events: [],
+                today: new Date(),
 
-        function pilihFasilitas(key) {
-            const item = dataFasilitas[key];
-            if(!item) return;
+                init() {
+                    this.today.setHours(0,0,0,0);
+                    this.buildCalendar();
+                    if (this.selectedId) {
+                        this.fetchData();
+                    }
+                },
 
-            const imgWrap = document.getElementById('imageWrapper');
-            const textWrap = document.getElementById('textWrapper');
+                selectFacility(id) {
+                    this.selectedId = id;
+                    this.showCalendar = true;
+                    this.fetchData();
+                    
+                    // Smooth scroll to calendar
+                    setTimeout(() => {
+                        window.scrollTo({
+                            top: document.querySelector('.lg:col-span-8').offsetTop - 120,
+                            behavior: 'smooth'
+                        });
+                    }, 100);
+                },
 
-            // Fade Out & Slide Down
-            imgWrap.style.opacity = '0';
-            imgWrap.style.transform = 'translateY(15px)';
-            textWrap.style.opacity = '0';
-            textWrap.style.transform = 'translateY(15px)';
+                async fetchData() {
+                    if (!this.selectedId) return;
+                    this.isLoading = true;
+                    try {
+                        const res = await fetch(`/schedule_booking/data?fasilitas_id=${this.selectedId}&year=${this.currentYear}&month=${this.currentMonth}&t=${Date.now()}`);
+                        this.events = await res.json();
+                        this.buildCalendar();
+                    } catch (e) {
+                        console.error("Fetch Data Error:", e);
+                        this.events = [];
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
 
-            setTimeout(() => {
-                // Ganti Konten
-                document.getElementById('displayTitle').innerText = item.nama;
-                document.getElementById('dropdownLabel').innerText = item.nama;
-                document.getElementById('displayID').innerText = "ID: " + item.id;
-                document.getElementById('displayFloor').innerText = item.lantai;
-                document.getElementById('displayImage').src = item.img;
+                buildCalendar() {
+                    const year = this.currentYear;
+                    const month = this.currentMonth;
+                    
+                    const firstDay = new Date(year, month - 1, 1).getDay();
+                    const daysInMonth = new Date(year, month, 0).getDate();
+                    const prevMonthDays = new Date(year, month - 1, 0).getDate();
+                    
+                    const tempDays = [];
 
-                // Fade In & Slide Up
-                imgWrap.style.opacity = '1';
-                imgWrap.style.transform = 'translateY(0)';
-                textWrap.style.opacity = '1';
-                textWrap.style.transform = 'translateY(0)';
-            }, 300);
-        }
+                    // Previous month days
+                    for (let i = firstDay - 1; i >= 0; i--) {
+                        tempDays.push({ day: prevMonthDays - i, isOther: true });
+                    }
 
-        // Logic Modal
-        function toggleModal(show) {
-            const modal = document.getElementById('confirmModal');
-            const content = document.getElementById('modalContent');
-            if (show) {
-                modal.classList.remove('hidden');
-                setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); }, 10);
-            } else {
-                content.classList.add('scale-95', 'opacity-0');
-                setTimeout(() => { modal.classList.add('hidden'); }, 200);
-            }
-        }
+                    // Current month days
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const dateStr = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                        const { statusClass, tooltip } = this.getDayInfo(dateStr);
+                        const isToday = (new Date(year, month - 1, d).getTime() === this.today.getTime());
+                        
+                        tempDays.push({
+                            day: d,
+                            isOther: false,
+                            statusClass,
+                            tooltip,
+                            isToday,
+                            dateStr
+                        });
+                    }
 
-        function executeBack(btn) { btn.innerHTML = "Memuat..."; window.location.href = "/"; }
+                    // Next month days
+                    const remaining = (7 - (tempDays.length % 7)) % 7;
+                    for (let d = 1; d <= remaining; d++) {
+                        tempDays.push({ day: d, isOther: true });
+                    }
 
-        // Render Daftar Tanggal (Ikon Fixed)
-        function renderDateList() {
-            const container = document.getElementById('dateList');
-            container.innerHTML = '';
-            const today = new Date();
-            for (let i = 0; i < 14; i++) {
-                const d = new Date();
-                d.setDate(today.getDate() + i);
-                const active = i === 0;
-                const div = document.createElement('div');
-                div.className = `px-5 py-3 text-center min-w-[85px] rounded-2xl cursor-pointer transition-all flex-shrink-0 ${active ? 'bg-[#1265A8] text-white shadow-lg' : 'hover:bg-slate-100 text-slate-800'}`;
-                div.innerHTML = `
-                    <p class="text-[10px] font-bold uppercase ${active ? 'text-blue-200' : 'text-slate-400'}">${d.toLocaleDateString('id-ID', {weekday: 'short'})}</p>
-                    <p class="text-lg font-extrabold">${d.getDate()} ${d.toLocaleDateString('id-ID', {month: 'short'})}</p>
-                `;
-                container.appendChild(div);
-            }
-        }
-        renderDateList();
+                    this.daysInMonth = tempDays;
+                },
+
+                getDayInfo(dateStr) {
+                    const date = new Date(dateStr);
+                    date.setHours(0,0,0,0);
+
+                    // Grey for past dates
+                    if (date < this.today) {
+                        return { statusClass: 'status-past', tooltip: 'Tanggal Terlewati' };
+                    }
+
+                    for (const ev of this.events) {
+                        const start = new Date(ev.tgl_mulai); start.setHours(0,0,0,0);
+                        const end   = new Date(ev.tgl_selesai); end.setHours(23,59,59,999);
+                        
+                        if (date >= start && date <= end) {
+                            if (ev.color === 'yellow') {
+                                return { statusClass: 'status-pending', tooltip: 'Pending Konfirmasi' };
+                            }
+                            if (ev.color === 'blue') {
+                                return { statusClass: 'status-booked', tooltip: 'Sudah Terbooking' };
+                            }
+                            if (ev.color === 'black') {
+                                return { statusClass: 'status-blocked', tooltip: 'Diblokir / Locked' };
+                            }
+                            if (ev.color === 'red') {
+                                return { statusClass: 'status-maintenance', tooltip: 'Maintenance: ' + (ev.reason || 'Perbaikan') };
+                            }
+                        }
+                    }
+
+                    // Default ready
+                    return { statusClass: 'status-ready', tooltip: 'Tersedia' };
+                },
+
+                changeMonth(delta) {
+                    this.currentMonth += delta;
+                    if (this.currentMonth > 12) { this.currentMonth = 1; this.currentYear++; }
+                    if (this.currentMonth < 1)  { this.currentMonth = 12; this.currentYear--; }
+                    this.fetchData();
+                },
+
+                goToday() {
+                    const n = new Date();
+                    this.currentYear = n.getFullYear();
+                    this.currentMonth = n.getMonth() + 1;
+                    this.fetchData();
+                },
+
+                get monthName() {
+                    const names = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    return names[this.currentMonth - 1];
+                }
+            }));
+        });
     </script>
 </body>
 </html>
+

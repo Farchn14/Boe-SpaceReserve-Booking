@@ -10,6 +10,8 @@ use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\FasilitasController;
 use App\Http\Controllers\KontrolJadwalController;
 use App\Http\Controllers\RiwayatController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\NotificationController;
 
 // --- ROUTE ASLI KAMU (TIDAK DIUBAH) ---
 
@@ -27,9 +29,8 @@ Route::get('/formBooking', function (\Illuminate\Http\Request $request) {
 Route::post('/bookings/store', [BookingController::class, 'store'])->name('bookings.store');
 Route::get('/receipt/public/{id}', [BookingController::class, 'publicReceipt'])->name('public.receipt');
 
-Route::get('/schedule_booking', function () {
-    return view('schedule_booking');
-})->name('schedule_booking');
+Route::get('/schedule_booking', [ScheduleController::class, 'index'])->name('schedule_booking');
+Route::get('/schedule_booking/data', [KontrolJadwalController::class, 'publicCalendarData'])->name('schedule_booking.data');
 
 // Bagian Admin
 Route::get('/admin/formLogin', function () {
@@ -39,6 +40,8 @@ Route::get('/admin/formLogin', function () {
 // Auth Admin
 Route::post('/admin/login', [AdminsController::class, 'login'])->name('admin.login');
 Route::get('/admin/logout', [AdminsController::class, 'logout'])->name('admin.logout');
+
+Route::get('/admin/dashboard/blokir-internal', [KontrolJadwalController::class, 'showFormBlokir'])->name('kontrolJadwal.formBlokir');
 
 Route::middleware(['admin.access'])->group(function () {
     // Route Khusus Owner
@@ -63,6 +66,11 @@ Route::middleware(['admin.access'])->group(function () {
         Route::get('/admin/dashboard/management/view_admin', function () {
             return view('admin.dashboard.management.view_admin');
         })->name('dashboardViewAdmin');
+
+        // Audit Log (Owner Only)
+        Route::get('/admin/dashboard/auditLog', [AuditLogController::class, 'index'])->name('kontrolJadwal.auditLog');
+        Route::delete('/admin/dashboard/auditLog/batch', [AuditLogController::class, 'destroyBatch'])->name('auditLog.batchDestroy');
+        Route::delete('/admin/dashboard/auditLog/{id}', [AuditLogController::class, 'destroy'])->name('auditLog.destroy');
     });
 
     // Routing umum Admin
@@ -73,27 +81,33 @@ Route::middleware(['admin.access'])->group(function () {
     })->name('dashboardSidebar');
 
     Route::get('/admin/dashboard/dataFasilitas', [FasilitasController::class, 'index'])->name('fasilitas.index');
+    Route::post('/admin/fasilitas/{id}/maintenance', [FasilitasController::class, 'storeMaintenance'])->name('fasilitas.maintenance');
+    Route::post('/admin/fasilitas/{id}/cancel-maintenance', [FasilitasController::class, 'cancelMaintenance'])->name('fasilitas.cancelMaintenance');
 
-    Route::get('/admin/dashboard/dataHargaSewa', [AdminsController::class, 'dataHargaSewa'])->name('dashboardHargaSewa');
-    Route::delete('/admin/dashboard/dataHargaSewa/delete/{id}', [AdminsController::class, 'destroyHargaSewa'])->name('admin.deleteHargaSewa');
-    Route::post('/admin/dashboard/dataHargaSewa/bulk-delete', [AdminsController::class, 'bulkDestroyHargaSewa'])->name('admin.bulkDeleteHargaSewa');
+    Route::get('/admin/dashboard/historyBooking', [RiwayatController::class, 'index'])->name('dashboardhistoryBooking');
+    Route::delete('/admin/dashboard/historyBooking/batch', [RiwayatController::class, 'destroyBatch'])->name('admin.history.batchDestroy');
+    Route::delete('/admin/dashboard/historyBooking/{id}', [RiwayatController::class, 'destroy'])->name('admin.history.destroy');
+    Route::get('/admin/dashboard/managementBooking', [BookingController::class, 'management'])->name('dashboardManagementBooking');
 
-    Route::get('/admin/dashboard/dataPenyewa', [AdminsController::class, 'dataPenyewa'])->name('dashboardPenyewa');
-    Route::delete('/admin/dashboard/dataPenyewa/delete/{id}', [AdminsController::class, 'destroyPenyewa'])->name('admin.deletePenyewa');
-    Route::post('/admin/dashboard/dataPenyewa/bulk-delete', [AdminsController::class, 'bulkDestroyPenyewa'])->name('admin.bulkDeletePenyewa');
+    // ── Kontrol Jadwal ──
+    Route::get('/admin/dashboard/kontrolJadwal', [KontrolJadwalController::class, 'index'])->name('kontrolJadwal.index');
+    Route::get('/admin/dashboard/kontrolJadwal/data', [KontrolJadwalController::class, 'calendarData'])->name('kontrolJadwal.data');
+    Route::post('/admin/jadwal/blokir', [KontrolJadwalController::class, 'storeBlokir'])->name('kontrolJadwal.blokir');
+    Route::delete('/admin/jadwal/blokir/{id}', [KontrolJadwalController::class, 'destroyBlokir'])->name('kontrolJadwal.destroyBlokir');
+    Route::get('/admin/bookings/{id}/receipt', [KontrolJadwalController::class, 'downloadReceipt'])->name('admin.bookings.receipt');
 
-    Route::get('/admin/dashboard/kontrolJadwal', function (){
-        return view('admin.dashboard.kontrolJadwal');
-    })->name('dashboardkontrolJadwal');
-
-    Route::get('/admin/dashboard/jadwalBooking', [BookingController::class, 'indexAdmin'])->name('dashboardjadwalBooking');
+    // Book approve / reject / detail (AJAX)
+    Route::get('/admin/bookings/{id}/detail', [BookingController::class, 'show'])->name('admin.bookings.detail');
     Route::post('/admin/bookings/{id}/approve', [BookingController::class, 'approve'])->name('admin.bookings.approve');
     Route::post('/admin/bookings/{id}/reject', [BookingController::class, 'reject'])->name('admin.bookings.reject');
-    Route::get('/admin/bookings/{id}/receipt', [BookingController::class, 'downloadReceipt'])->name('admin.bookings.receipt');
+    Route::post('/admin/bookings/{id}/cancel', [BookingController::class, 'cancel'])->name('admin.bookings.cancel');
+    Route::post('/admin/bookings/{id}/extend', [BookingController::class, 'extend'])->name('admin.bookings.extend');
+    Route::post('/admin/bookings/{id}/checkin', [BookingController::class, 'checkIn'])->name('admin.bookings.checkin');
+    Route::post('/admin/bookings/{id}/checkout', [BookingController::class, 'checkOut'])->name('admin.bookings.checkout');
+    Route::post('/admin/bookings/{id}/extend-stay', [BookingController::class, 'extendStay'])->name('admin.bookings.extendStay');
 
-    Route::get('/admin/dashboard/historyBooking', function () {
-        return view('admin.dashboard.historyBooking');
-    })->name('dashboardhistoryBooking');
+    // Notifications
+    Route::get('/admin/notifications/count', [NotificationController::class, 'getPendingCount'])->name('admin.notifications.count');
 
     Route::get('/admin/dashboard/search/searchBar', function () {
         return view('admin.dashboard.search.searchBar');
@@ -102,8 +116,6 @@ Route::middleware(['admin.access'])->group(function () {
     Route::get('/admin/dashboard/detail/detailBooking', function () {
         return view('admin.dashboard.detail.detailBooking');
     })->name('dashboarddetailBooking');
-
-    Route::get('/admin/dashboard/detail/detailPenyewa', [AdminsController::class, 'detailPenyewa'])->name('dashboarddetailPenyewa');
 
     Route::get('/admin/dashboard/stats', [AdminsController::class, 'index'])->name('admin.stats');
 

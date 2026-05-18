@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
@@ -14,24 +14,388 @@
         [x-cloak] { display: none !important; }
         .step-transition { transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 
-        /* ── Status Colors (Mirrored from Admin) ── */
+        /* â”€â”€ Status Colors (Mirrored from Admin) â”€â”€ */
         .status-ready       { background-color: #d1fae5; color: #065f46; }
         .status-pending     { background-color: #fef9c3; color: #854d0e; }
         .status-booked      { background-color: #dbeafe; color: #1e40af; }
         .status-blocked     { background-color: #1e293b; color: #f1f5f9; }
-        .status-maintenance { background-color: #fee2e2; color: #991b1b; }
+        .status-Repairenance { background-color: #fee2e2; color: #991b1b; }
         .status-past        { background-color: #f1f5f9; color: #94a3b8; }
         .status-closed      { background-color: #e2e8f0; color: #94a3b8; opacity: 0.5; cursor: not-allowed; }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-gray-100 min-h-screen font-['Poppins']">
 
+{{-- Navbar Hidden during booking process as requested --}}
+{{-- <x-layout.navbar /> --}}
+
 <main class="flex flex-col items-center justify-start pt-32 pb-20 px-4" 
-    x-cloak
-    x-data="bookingForm({
+    x-data="{
+        step: 1,
+        packageType: '',
+        duration: 1,
+        adults: 1,
+        children: 0,
+        childAges: [],
+        rooms: 1,
+        selectedDate: null,
+        name: '',
+        email: '',
+        whatsapp: '',
+        provinsi: '',
+        provinsiName: '',
+        kabupaten: '',
+        kabupatenName: '',
+        provinces: [],
+        regencies: [],
+        fotoIdentitas: null,
+        fotoPreview: null,
         facilities: {{ $facilities->toJson() }},
-        selectedFacilityId: '{{ $selectedId ?? '' }}'
-    })">
+        selectedFacilityId: '{{ $selectedId ?? '' }}',
+
+        // Calendar state
+        currentMonth: new Date().getMonth(),
+        currentYear: new Date().getFullYear(),
+        daysInMonth: [],
+        calendarEvents: [],
+        isLoadingCalendar: false,
+
+        init() {
+            this.updateDaysInMonth();
+            this.$watch('children', val => {
+                const count = parseInt(val) || 0;
+                if (count > this.childAges.length) {
+                    for (let i = this.childAges.length; i < count; i++) this.childAges.push('');
+                } else {
+                    this.childAges = this.childAges.slice(0, count);
+                }
+            });
+            this.$watch('adults', val => { 
+                if (this.currentFacility?.tipe === 'asrama' && this.rooms > val) this.rooms = val; 
+            });
+
+            // Watch for month/year changes to refetch calendar
+            this.$watch('currentMonth', () => { this.updateDaysInMonth(); this.fetchCalendarData(); });
+            this.$watch('currentYear', () => { this.updateDaysInMonth(); this.fetchCalendarData(); });
+            this.$watch('selectedFacilityId', () => { this.fetchCalendarData(); });
+
+            // Fetch Provinces from Emsifa API
+            fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
+                .then(res => res.json())
+                .then(data => this.provinces = data);
+            
+            // Watch province to fetch regencies
+            this.$watch('provinsi', val => {
+                this.kabupaten = '';
+                this.kabupatenName = '';
+                this.regencies = [];
+                if(val) {
+                    const prov = this.provinces.find(p => p.id == val);
+                    this.provinsiName = prov ? prov.name : '';
+                    fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${val}.json`)
+                        .then(res => res.json())
+                        .then(data => this.regencies = data);
+                }
+            });
+
+            // Watch kabupaten to get Name
+            this.$watch('kabupaten', val => {
+                if(val) {
+                    const kab = this.regencies.find(k => k.id == val);
+                    this.kabupatenName = kab ? kab.name : '';
+                } else {
+                    this.kabupatenName = '';
+                }
+            });
+        },
+
+        get currentFacility() {
+            return this.facilities.find(f => f.id == this.selectedFacilityId) || null;
+        },
+
+        get totalPrice() {
+            const f = this.currentFacility;
+            if (!f) return 0;
+            if (this.packageType === 'harian') {
+                return (parseInt(this.duration) || 0) * (parseFloat(f.harga) || 0);
+            } else {
+                // Return 0 if monthly price not set
+                if (!f.harga_bulanan) return 0;
+                return (parseInt(this.duration) || 0) * (parseFloat(f.harga_bulanan) || 0);
+            }
+        },
+
+        handleFileChange(event) {
+            const file = event.target.files[0];
+            if (!file) {
+                this.fotoIdentitas = null;
+                this.fotoPreview = null;
+                return;
+            }
+            if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+                Swal.fire('Format Tidak Valid', 'Mohon unggah file format JPG, JPEG, atau PNG.', 'error');
+                event.target.value = '';
+                this.fotoIdentitas = null;
+                this.fotoPreview = null;
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                Swal.fire('Ukuran Terlalu Besar', 'Maksimal ukuran file foto identitas adalah 2MB.', 'error');
+                event.target.value = '';
+                this.fotoIdentitas = null;
+                this.fotoPreview = null;
+                return;
+            }
+            this.fotoIdentitas = file;
+            this.fotoPreview = URL.createObjectURL(file);
+        },
+
+        // Step Navigation
+        nextStep() { 
+            if (this.step === 2) {
+                if (this.currentFacility?.tipe === 'asrama') {
+                    if (this.packageType === 'harian' && this.duration > (this.currentFacility.max_durasi_harian || 999)) {
+                        Swal.fire('Peringatan', `Maksimal durasi harian untuk asrama ini adalah ${this.currentFacility.max_durasi_harian} hari.`, 'warning');
+                        return;
+                    }
+                }
+                // Trigger fetch when moving to calendar step
+                this.fetchCalendarData();
+            }
+            if (this.step < 4) this.step++; 
+        },
+        prevStep() { if (this.step > 1) this.step--; },
+
+        confirmCancel() {
+            Swal.fire({
+                title: 'Batal Booking?',
+                text: 'Semua progres pengisian akan hilang.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                confirmButtonText: 'Ya, Batalkan',
+                cancelButtonText: 'Tidak'
+            }).then(result => { if (result.isConfirmed) window.location.href = '/'; });
+        },
+
+        // Stepper Logic
+        inc(field, max = null) {
+            const f = this.currentFacility;
+            
+            if (field === 'duration') {
+                if (this.packageType === 'harian') {
+                    const limit = f?.max_durasi_harian || 999;
+                    if (this.duration >= limit) {
+                        Swal.fire({
+                            title: 'Peringatan',
+                            text: `Maksimal durasi harian untuk ${f?.nama || 'fasilitas ini'} adalah ${limit} hari.`,
+                            icon: 'warning',
+                            confirmButtonColor: '#276AD7'
+                        });
+                        return;
+                    }
+                }
+            }
+
+            if (field === 'rooms') {
+                if (f?.tipe === 'aula') return; // No rooms for aula
+                if (this.rooms >= this.adults) {
+                    Swal.fire({
+                        title: 'Peringatan',
+                        text: 'Maksimal 1 orang 1 kamar, mohon tambah jumlah orang/dewasa untuk menambah 1 kamar lagi',
+                        icon: 'warning',
+                        confirmButtonColor: '#276AD7'
+                    });
+                    return;
+                }
+            }
+            
+            if (field === 'adults') {
+                const limit = f?.max_dewasa || 999;
+                if (this.adults >= limit) {
+                    Swal.fire('Peringatan', `Maksimal kapasitas dewasa adalah ${limit}`, 'warning');
+                    return;
+                }
+            }
+            
+            if (field === 'children') {
+                const limit = f?.max_anak || 0;
+                if (this.children >= limit) {
+                    Swal.fire('Peringatan', `Maksimal kapasitas anak adalah ${limit}`, 'warning');
+                    return;
+                }
+            }
+
+            if (max !== null && this[field] >= max) return;
+            this[field]++;
+        },
+        dec(field, min = 0) { if (this[field] > min) this[field]--; },
+
+        // Calendar Logic
+        updateDaysInMonth() {
+            const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
+            const startDay = new Date(this.currentYear, this.currentMonth, 1).getDay();
+            this.daysInMonth = [];
+            for (let i = 0; i < startDay; i++) this.daysInMonth.push({ day: null, date: null });
+            for (let i = 1; i <= lastDay; i++) {
+                this.daysInMonth.push({ day: i, date: new Date(this.currentYear, this.currentMonth, i) });
+            }
+        },
+
+        async fetchCalendarData() {
+            if (!this.selectedFacilityId) return;
+            this.isLoadingCalendar = true;
+            try {
+                const res = await fetch(`/schedule_booking/data?fasilitas_id=${this.selectedFacilityId}&year=${this.currentYear}&month=${this.currentMonth + 1}&t=${Date.now()}`);
+                this.calendarEvents = await res.json();
+            } catch (e) {
+                this.calendarEvents = [];
+            } finally {
+                this.isLoadingCalendar = false;
+            }
+        },
+
+        formatDateLocal(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        },
+
+        getDateStatus(date) {
+            if (!date) return 'closed';
+            const today = new Date(); today.setHours(0,0,0,0);
+            if (date < today) return 'closed';
+            
+            // Check against fetched calendarEvents
+            const dStr = this.formatDateLocal(date);
+            
+            for (const ev of this.calendarEvents) {
+                const start = new Date(ev.tgl_mulai); start.setHours(0,0,0,0);
+                const end   = new Date(ev.tgl_selesai); end.setHours(23,59,59,999);
+                if (date >= start && date <= end) {
+                    if (ev.color === "yellow") return "pending";
+                    if (ev.color === "blue")   return "booked";
+                    if (ev.color === "black")  return "blocked";
+                    if (ev.color === "red")    return "maintenance";
+                }
+            }
+
+            return 'ready';
+        },
+
+        
+        getDayInfo(date) {
+            if (!date) return "";
+            for (const ev of this.calendarEvents) {
+                const start = new Date(ev.tgl_mulai); start.setHours(0,0,0,0);
+                const end   = new Date(ev.tgl_selesai); end.setHours(23,59,59,999);
+                if (date >= start && date <= end) {
+                    if (ev.status === "maintenance") return "Perbaikan: " + (ev.reason || "Maintenance");
+                    return ev.status.toUpperCase();
+                }
+            }
+            return "";
+        },
+
+        isInRange(date) {
+            if (!this.selectedDate || !date) return false;
+            const start = new Date(this.selectedDate);
+            start.setHours(0,0,0,0);
+            const end = new Date(start);
+            
+            if (this.packageType === 'harian') {
+                end.setDate(start.getDate() + (parseInt(this.duration) - 1));
+            } else {
+                // Monthly: add months then substract 1 day for inclusive range
+                end.setMonth(start.getMonth() + parseInt(this.duration));
+                end.setDate(end.getDate() - 1);
+            }
+            
+            date.setHours(0,0,0,0);
+            return date >= start && date <= end;
+        },
+
+        selectDate(date) {
+            const status = this.getDateStatus(date);
+            if (!date || status !== 'ready') return;
+            this.selectedDate = date;
+        },
+
+        prevMonth() {
+            if (this.currentMonth === 0) {
+                this.currentMonth = 11;
+                this.currentYear--;
+            } else {
+                this.currentMonth--;
+            }
+        },
+
+        nextMonth() {
+            if (this.currentMonth === 11) {
+                this.currentMonth = 0;
+                this.currentYear++;
+            } else {
+                this.currentMonth++;
+            }
+        },
+
+        get monthName() {
+            return new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(this.currentYear, this.currentMonth));
+        },
+
+        submitBooking() {
+            if (!this.name || !this.whatsapp || !this.email || !this.provinsiName || !this.kabupatenName || !this.fotoIdentitas) {
+                Swal.fire({
+                    title: 'Data Tidak Lengkap',
+                    text: 'Mohon lengkapi seluruh data pemohon termasuk Asal Wilayah dan Foto Identitas Anda.',
+                    icon: 'warning',
+                    confirmButtonColor: '#1265A8'
+                });
+                return;
+            }
+
+            Swal.fire({ title: 'Mengirim Reservasi...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            const formData = new FormData();
+            formData.append('name', this.name);
+            formData.append('whatsapp', this.whatsapp);
+            formData.append('email', this.email);
+            formData.append('provinsi', this.provinsiName);
+            formData.append('kabupaten', this.kabupatenName);
+            formData.append('fasilitas_id', this.selectedFacilityId);
+            formData.append('package_type', this.packageType);
+            if (this.fotoIdentitas) {
+                formData.append('foto_identitas', this.fotoIdentitas);
+            }
+            formData.append('duration', this.duration);
+            formData.append('adults', this.adults);
+            formData.append('children_count', this.children);
+            formData.append('rooms_count', this.rooms);
+            this.childAges.forEach(age => formData.append('child_age[]', age));
+            formData.append('tgl_mulai', this.formatDateLocal(this.selectedDate));
+            if (this.packageType === 'bulanan') {
+                const end = new Date(this.selectedDate);
+                end.setMonth(end.getMonth() + parseInt(this.duration));
+                end.setDate(end.getDate() - 1);
+                formData.append('tgl_selesai', this.formatDateLocal(end));
+            }
+            // Add CSRF
+            formData.append('_token', '{{ csrf_token() }}');
+
+            fetch('{{ route('bookings.store') }}', { method: 'POST', body: formData })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    sessionStorage.setItem('booking_success', 'true');
+                    window.location.href = '/';
+                } else {
+                    Swal.fire('Gagal!', data.message || 'Terjadi kesalahan.', 'error');
+                }
+            });
+        }
+    }">
 
     <div class="w-full max-w-2xl bg-white/80 backdrop-blur-xl p-8 md:p-12 rounded-[3.5rem] shadow-2xl border border-white/60 relative overflow-hidden">
         
@@ -192,7 +556,7 @@
                         <div class="bg-gray-50 py-3 text-center text-[9px] font-black text-gray-400 uppercase tracking-widest" x-text="d"></div>
                     </template>
                     <template x-for="(item, idx) in daysInMonth" :key="idx">
-                        <div class="h-16 sm:h-20 md:h-24 relative group transition-all flex items-center justify-center cursor-pointer"
+                        <div class="h-16 sm:h-20 md:h-24 relative group transition-all flex items-center justify-center"
                             :class="item.day ? 'status-' + getDateStatus(item.date) : 'bg-white'"
                             @click="selectDate(item.date)">
                             
@@ -210,7 +574,7 @@
                                 class="absolute inset-0 bg-blue-600/10 border-2 border-blue-600/30 z-0">
                             </div>
 
-                            {{-- Tooltip info --}}
+                            {{-- Tooltip (Only for small text info) --}}
                             <template x-if="item.day && getDateStatus(item.date) !== 'ready' && getDateStatus(item.date) !== 'closed'">
                                 <div class="absolute bottom-1 left-0 right-0 text-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                                     <span class="bg-black/80 text-white text-[7px] font-black uppercase px-2 py-0.5 rounded shadow-lg whitespace-nowrap" x-text="getDayInfo(item.date)"></span>
@@ -385,365 +749,10 @@
 
     {{-- Footer Info --}}
     <div class="mt-12 text-center">
-        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em]">© 2026 BBPPMPV BOE MALANG</p>
+        <p class="text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em]">Â© 2026 BBPPMPV BOE MALANG</p>
     </div>
 </main>
 
-<script>
-    document.addEventListener('alpine:init', () => {
-        Alpine.data('bookingForm', (config) => ({
-            step: 1,
-            packageType: '',
-            duration: 1,
-            adults: 1,
-            children: 0,
-            childAges: [],
-            rooms: 1,
-            selectedDate: null,
-            name: '',
-            email: '',
-            whatsapp: '',
-            provinsi: '',
-            provinsiName: '',
-            kabupaten: '',
-            kabupatenName: '',
-            provinces: [],
-            regencies: [],
-            fotoIdentitas: null,
-            fotoPreview: null,
-            facilities: config.facilities || [],
-            selectedFacilityId: config.selectedFacilityId || '',
-
-            // Calendar state
-            currentMonth: new Date().getMonth(),
-            currentYear: new Date().getFullYear(),
-            daysInMonth: [],
-            calendarEvents: [],
-            isLoadingCalendar: false,
-
-            init() {
-                this.updateDaysInMonth();
-                this.$watch('children', val => {
-                    const count = parseInt(val) || 0;
-                    if (count > this.childAges.length) {
-                        for (let i = this.childAges.length; i < count; i++) this.childAges.push('');
-                    } else {
-                        this.childAges = this.childAges.slice(0, count);
-                    }
-                });
-                this.$watch('adults', val => { 
-                    if (this.currentFacility?.tipe === 'asrama' && this.rooms > val) this.rooms = val; 
-                });
-
-                // Watch for month/year changes to refetch calendar
-                this.$watch('currentMonth', () => { this.updateDaysInMonth(); this.fetchCalendarData(); });
-                this.$watch('currentYear', () => { this.updateDaysInMonth(); this.fetchCalendarData(); });
-                this.$watch('selectedFacilityId', () => { this.fetchCalendarData(); });
-
-                // Fetch Provinces from Emsifa API
-                fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json')
-                    .then(res => res.json())
-                    .then(data => this.provinces = data);
-                
-                // Watch province to fetch regencies
-                this.$watch('provinsi', val => {
-                    this.kabupaten = '';
-                    this.kabupatenName = '';
-                    this.regencies = [];
-                    if(val) {
-                        const prov = this.provinces.find(p => p.id == val);
-                        this.provinsiName = prov ? prov.name : '';
-                        fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${val}.json`)
-                            .then(res => res.json())
-                            .then(data => this.regencies = data);
-                    }
-                });
-
-                // Watch kabupaten to get Name
-                this.$watch('kabupaten', val => {
-                    if(val) {
-                        const kab = this.regencies.find(k => k.id == val);
-                        this.kabupatenName = kab ? kab.name : '';
-                    } else {
-                        this.kabupatenName = '';
-                    }
-                });
-            },
-
-            get currentFacility() {
-                return this.facilities.find(f => f.id == this.selectedFacilityId) || null;
-            },
-
-            get totalPrice() {
-                const f = this.currentFacility;
-                if (!f) return 0;
-                if (this.packageType === 'harian') {
-                    return (parseInt(this.duration) || 0) * (parseFloat(f.harga) || 0);
-                } else {
-                    if (!f.harga_bulanan) return 0;
-                    return (parseInt(this.duration) || 0) * (parseFloat(f.harga_bulanan) || 0);
-                }
-            },
-
-            handleFileChange(event) {
-                const file = event.target.files[0];
-                if (!file) {
-                    this.fotoIdentitas = null;
-                    this.fotoPreview = null;
-                    return;
-                }
-                if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-                    Swal.fire('Format Tidak Valid', 'Mohon unggah file format JPG, JPEG, atau PNG.', 'error');
-                    event.target.value = '';
-                    this.fotoIdentitas = null;
-                    this.fotoPreview = null;
-                    return;
-                }
-                if (file.size > 2 * 1024 * 1024) {
-                    Swal.fire('Ukuran Terlalu Besar', 'Maksimal ukuran file foto identitas adalah 2MB.', 'error');
-                    event.target.value = '';
-                    this.fotoIdentitas = null;
-                    this.fotoPreview = null;
-                    return;
-                }
-                this.fotoIdentitas = file;
-                this.fotoPreview = URL.createObjectURL(file);
-            },
-
-            nextStep() { 
-                if (this.step === 2) {
-                    if (this.currentFacility?.tipe === 'asrama') {
-                        if (this.packageType === 'harian' && this.duration > (this.currentFacility.max_durasi_harian || 999)) {
-                            Swal.fire('Peringatan', `Maksimal durasi harian untuk asrama ini adalah ${this.currentFacility.max_durasi_harian} hari.`, 'warning');
-                            return;
-                        }
-                    }
-                    this.fetchCalendarData();
-                }
-                if (this.step < 4) this.step++; 
-            },
-
-            prevStep() { if (this.step > 1) this.step--; },
-
-            confirmCancel() {
-                Swal.fire({
-                    title: 'Batal Booking?',
-                    text: 'Semua progres pengisian akan hilang.',
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#ef4444',
-                    confirmButtonText: 'Ya, Batalkan',
-                    cancelButtonText: 'Tidak'
-                }).then(result => { if (result.isConfirmed) window.location.href = '/'; });
-            },
-
-            inc(field, max = null) {
-                const f = this.currentFacility;
-                if (field === 'duration') {
-                    if (this.packageType === 'harian') {
-                        const limit = f?.max_durasi_harian || 999;
-                        if (this.duration >= limit) {
-                            Swal.fire({
-                                title: 'Peringatan',
-                                text: `Maksimal durasi harian untuk ${f?.nama || 'fasilitas ini'} adalah ${limit} hari.`,
-                                icon: 'warning',
-                                confirmButtonColor: '#276AD7'
-                            });
-                            return;
-                        }
-                    }
-                }
-                if (field === 'rooms') {
-                    if (f?.tipe === 'aula') return;
-                    if (this.rooms >= this.adults) {
-                        Swal.fire({
-                            title: 'Peringatan',
-                            text: 'Maksimal 1 orang 1 kamar, mohon tambah jumlah orang/dewasa untuk menambah 1 kamar lagi',
-                            icon: 'warning',
-                            confirmButtonColor: '#276AD7'
-                        });
-                        return;
-                    }
-                }
-                if (field === 'adults') {
-                    const limit = f?.max_dewasa || 999;
-                    if (this.adults >= limit) {
-                        Swal.fire('Peringatan', `Maksimal kapasitas dewasa adalah ${limit}`, 'warning');
-                        return;
-                    }
-                }
-                if (field === 'children') {
-                    const limit = f?.max_anak || 0;
-                    if (this.children >= limit) {
-                        Swal.fire('Peringatan', `Maksimal kapasitas anak adalah ${limit}`, 'warning');
-                        return;
-                    }
-                }
-                if (max !== null && this[field] >= max) return;
-                this[field]++;
-            },
-
-            dec(field, min = 0) { if (this[field] > min) this[field]--; },
-
-            updateDaysInMonth() {
-                const lastDay = new Date(this.currentYear, this.currentMonth + 1, 0).getDate();
-                const startDay = new Date(this.currentYear, this.currentMonth, 1).getDay();
-                this.daysInMonth = [];
-                for (let i = 0; i < startDay; i++) this.daysInMonth.push({ day: null, date: null });
-                for (let i = 1; i <= lastDay; i++) {
-                    this.daysInMonth.push({ day: i, date: new Date(this.currentYear, this.currentMonth, i) });
-                }
-            },
-
-            async fetchCalendarData() {
-                if (!this.selectedFacilityId) return;
-                this.isLoadingCalendar = true;
-                try {
-                    const res = await fetch(`/schedule_booking/data?fasilitas_id=${this.selectedFacilityId}&year=${this.currentYear}&month=${this.currentMonth + 1}&t=${Date.now()}`);
-                    this.calendarEvents = await res.json();
-                } catch (e) {
-                    this.calendarEvents = [];
-                } finally {
-                    this.isLoadingCalendar = false;
-                }
-            },
-
-            formatDateLocal(date) {
-                if (!date) return '';
-                const d = new Date(date);
-                const year = d.getFullYear();
-                const month = String(d.getMonth() + 1).padStart(2, '0');
-                const day = String(d.getDate()).padStart(2, '0');
-                return `${year}-${month}-${day}`;
-            },
-
-            getDateStatus(date) {
-                if (!date) return 'closed';
-                const today = new Date(); today.setHours(0,0,0,0);
-                if (date < today) return 'closed';
-                
-                for (const ev of this.calendarEvents) {
-                    const start = new Date(ev.tgl_mulai); start.setHours(0,0,0,0);
-                    const end   = new Date(ev.tgl_selesai); end.setHours(23,59,59,999);
-                    if (date >= start && date <= end) {
-                        if (ev.color === "yellow") return "pending";
-                        if (ev.color === "blue")   return "booked";
-                        if (ev.color === "black")  return "blocked";
-                        if (ev.color === "red")    return "maintenance";
-                    }
-                }
-                return 'ready';
-            },
-
-            getDayInfo(date) {
-                if (!date) return "";
-                for (const ev of this.calendarEvents) {
-                    const start = new Date(ev.tgl_mulai); start.setHours(0,0,0,0);
-                    const end   = new Date(ev.tgl_selesai); end.setHours(23,59,59,999);
-                    if (date >= start && date <= end) {
-                        if (ev.status === "maintenance") return "Perbaikan: " + (ev.reason || "Maintenance");
-                        return ev.status.toUpperCase();
-                    }
-                }
-                return "";
-            },
-
-            isInRange(date) {
-                if (!this.selectedDate || !date) return false;
-                const start = new Date(this.selectedDate);
-                start.setHours(0,0,0,0);
-                const end = new Date(start);
-                
-                if (this.packageType === 'harian') {
-                    end.setDate(start.getDate() + (parseInt(this.duration) - 1));
-                } else {
-                    end.setMonth(start.getMonth() + parseInt(this.duration));
-                    end.setDate(end.getDate() - 1);
-                }
-                
-                date.setHours(0,0,0,0);
-                return date >= start && date <= end;
-            },
-
-            selectDate(date) {
-                const status = this.getDateStatus(date);
-                if (!date || status !== 'ready') return;
-                this.selectedDate = date;
-            },
-
-            prevMonth() {
-                if (this.currentMonth === 0) {
-                    this.currentMonth = 11;
-                    this.currentYear--;
-                } else {
-                    this.currentMonth--;
-                }
-            },
-
-            nextMonth() {
-                if (this.currentMonth === 11) {
-                    this.currentMonth = 0;
-                    this.currentYear++;
-                } else {
-                    this.currentMonth++;
-                }
-            },
-
-            get monthName() {
-                return new Intl.DateTimeFormat('id-ID', { month: 'long' }).format(new Date(this.currentYear, this.currentMonth));
-            },
-
-            submitBooking() {
-                if (!this.name || !this.whatsapp || !this.email || !this.provinsiName || !this.kabupatenName || !this.fotoIdentitas) {
-                    Swal.fire({
-                        title: 'Data Tidak Lengkap',
-                        text: 'Mohon lengkapi seluruh data pemohon termasuk Asal Wilayah dan Foto Identitas Anda.',
-                        icon: 'warning',
-                        confirmButtonColor: '#1265A8'
-                    });
-                    return;
-                }
-
-                Swal.fire({ title: 'Mengirim Reservasi...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                const formData = new FormData();
-                formData.append('name', this.name);
-                formData.append('whatsapp', this.whatsapp);
-                formData.append('email', this.email);
-                formData.append('provinsi', this.provinsiName);
-                formData.append('kabupaten', this.kabupatenName);
-                formData.append('fasilitas_id', this.selectedFacilityId);
-                formData.append('package_type', this.packageType);
-                if (this.fotoIdentitas) {
-                    formData.append('foto_identitas', this.fotoIdentitas);
-                }
-                formData.append('duration', this.duration);
-                formData.append('adults', this.adults);
-                formData.append('children_count', this.children);
-                formData.append('rooms_count', this.rooms);
-                this.childAges.forEach(age => formData.append('child_age[]', age));
-                formData.append('tgl_mulai', this.formatDateLocal(this.selectedDate));
-                if (this.packageType === 'bulanan') {
-                    const end = new Date(this.selectedDate);
-                    end.setMonth(end.getMonth() + parseInt(this.duration));
-                    end.setDate(end.getDate() - 1);
-                    formData.append('tgl_selesai', this.formatDateLocal(end));
-                }
-                formData.append('_token', '{{ csrf_token() }}');
-
-                fetch('{{ route('bookings.store') }}', { method: 'POST', body: formData })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success) {
-                        sessionStorage.setItem('booking_success', 'true');
-                        window.location.href = '/';
-                    } else {
-                        Swal.fire('Gagal!', data.message || 'Terjadi kesalahan.', 'error');
-                    }
-                });
-            }
-        }));
-    });
-</script>
-
 </body>
 </html>
+

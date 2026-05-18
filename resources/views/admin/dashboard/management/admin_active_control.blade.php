@@ -40,27 +40,17 @@
 
     <main class="flex-1 flex flex-col md:ml-64 bg-[#f8fafc] h-screen transition-all duration-500">
         <!-- Header -->
-        <header class="h-20 flex items-center justify-between px-8 bg-white/50 backdrop-blur-md border-b border-slate-100 z-10">
-            <div class="flex items-center gap-4">
-                <div class="p-2 bg-blue-50 rounded-lg text-[#1265A8]">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15.21 17.035a4.82 4.82 0 01-1.076-.253 1 1 0 01-.608-.713 2.502 2.502 0 00-4.45 0 1 1 0 01-.608.713 4.82 4.82 0 01-1.076.253M14 7a3 3 0 11-6 0 3 3 0 016 0zm6 3.354a4 4 0 110 5.292M19.21 19.035a4.82 4.82 0 01-1.076-.253 1 1 0 01-.608-.713 2.502 2.502 0 00-4.45 0 1 1 0 01-.608.713 4.82 4.82 0 01-1.076.253"></path></svg>
-                </div>
-                <div>
-                    <h1 class="text-xl font-black text-slate-800 tracking-tight">Admin Active Control</h1>
-                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Management & Role Controls</p>
-                </div>
-            </div>
-            
-            <div class="flex items-center gap-3">
-                <a href="{{ route('dashboardAddNewAdmin') }}" class="px-5 py-2.5 bg-[#1265A8] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:scale-105 transition-transform flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
-                    New Account
-                </a>
-                <button onclick="toggleSidebar()" class="md:hidden p-2.5 bg-slate-100 rounded-xl text-slate-600 active:scale-90 transition-all">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
-                </button>
-            </div>
-        </header>
+        @include('admin.dashboard.layouts.header', [
+            'headerTitle' => 'Admin Active Control',
+            'headerSubtitle' => 'Management & Role Controls'
+        ])
+
+        <div class="px-8 pb-4 flex justify-end">
+            <a href="{{ route('dashboardAddNewAdmin') }}" class="px-5 py-2.5 bg-[#1265A8] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:scale-105 transition-transform flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"></path></svg>
+                New Account
+            </a>
+        </div>
 
         <!-- Main Content Area -->
         <div class="flex-1 flex overflow-hidden p-6 gap-6">

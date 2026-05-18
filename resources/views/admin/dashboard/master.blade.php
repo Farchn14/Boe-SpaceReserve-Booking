@@ -85,52 +85,10 @@
     @include('admin.dashboard.layouts.sidebar')
 
     <main class="flex-1 md:ml-64 p-6 md:p-10">
-        <header class="mb-10">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                
-                <div class="flex items-center justify-between md:justify-start gap-4 flex-1">
-                    <div class="relative">
-                        <div class="absolute -left-4 top-0 bottom-0 w-1 bg-gradient-to-b from-[#1265A8] to-transparent rounded-full opacity-50 hidden md:block"></div>
-                        
-                        <h2 class="text-2xl md:text-3xl font-black tracking-tight text-slate-800 flex items-center gap-3">
-                            <span class="bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-[#1265A8] to-[#4292DC]">
-                                Admin Dashboard
-                            </span>
-                            
-                            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-[#1265A8] border border-blue-100 uppercase tracking-widest animate-pulse">
-                                Live
-                            </span>
-                        </h2>
-                        
-                        <p class="mt-1 text-slate-400 text-xs md:text-sm font-medium flex items-center">
-                            <svg class="w-4 h-4 mr-2 text-[#1265A8]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                            Selamat datang di <span class="text-slate-600 font-semibold mx-1">pusat kendali</span> operasional anda.
-                        </p>
-                    </div>
-
-                    <button onclick="toggleSidebar()" 
-                        class="md:hidden p-3 bg-white rounded-xl border border-slate-100 text-[#1265A8] 
-                        transition-all duration-300 ease-out
-                        hover:bg-blue-50 hover:border-blue-200 hover:text-[#4292DC] 
-                        hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] 
-                        active:scale-95 group">
-                        
-                        <svg class="w-6 h-6 transition-transform duration-300 group-hover:rotate-180" 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
-                        </svg>
-                    </button>
-                </div>
-                
-                {{-- search --}}
-                @include('admin.dashboard.search.searchBar')
-                
-            </div>
-        </header>
+        @include('admin.dashboard.layouts.header', [
+            'headerTitle' => 'Admin Dashboard',
+            'headerSubtitle' => 'Selamat datang di pusat kendali operasional anda.'
+        ])
 
         {{-- Dashboard Summary --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
@@ -175,59 +133,26 @@
                     <div class="flex justify-between items-center mb-6">
                         <div class="p-3 bg-indigo-50 rounded-2xl icon-float transition-transform duration-300">
                             <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
                         <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 text-[11px] font-extrabold tracking-wider">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-                            +20%
+                            Active
                         </span>
                     </div>
                     
                     <div class="space-y-1 mb-6">
-                        <h3 class="text-slate-500 text-xs font-bold uppercase tracking-[0.15em]">Jadwal Booking</h3>
+                        <h3 class="text-slate-500 text-xs font-bold uppercase tracking-[0.15em]">History Booking</h3>
                         <div class="flex items-baseline gap-2">
                             <p class="stat-value text-5xl font-black tracking-tighter text-slate-800" data-target="{{ $countBooking }}">0</p>
-                            <span class="text-slate-400 font-bold text-sm">Schedules</span>
+                            <span class="text-slate-400 font-bold text-sm">Records</span>
                         </div>
                     </div>
 
                     <div class="pt-5 border-t border-slate-100/80 flex justify-between items-center">
-                        <p class="text-[11px] text-slate-400 font-medium">Update jadwal terbaru</p>
-                        <a href="/admin/dashboard/jadwalBooking" class="flex items-center gap-2 text-[#1265A8] text-xs font-bold group/link">
-                            Detail <svg class="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="glass-card-modern card-hover group p-7 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden">
-                <div class="absolute -right-6 -top-6 w-24 h-24 bg-rose-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
-                
-                <div class="relative z-10">
-                    <div class="flex justify-between items-center mb-6">
-                        <div class="p-3 bg-rose-50 rounded-2xl icon-float transition-transform duration-300">
-                            <svg class="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                        </div>
-                        <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-600 text-[11px] font-extrabold tracking-wider">
-                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
-                            2.4%
-                        </span>
-                    </div>
-                    
-                    <div class="space-y-1 mb-6">
-                        <h3 class="text-slate-500 text-xs font-bold uppercase tracking-[0.15em]">Data Penyewa</h3>
-                        <div class="flex items-baseline gap-2">
-                            <p class="stat-value text-5xl font-black tracking-tighter text-slate-800" data-target="{{ $countPenyewa }}">0</p>
-                            <span class="text-slate-400 font-bold text-sm">People</span>
-                        </div>
-                    </div>
-
-                    <div class="pt-5 border-t border-slate-100/80 flex justify-between items-center">
-                        <p class="text-[11px] text-slate-400 font-medium">Total member aktif</p>
-                        <a href="/admin/dashboard/dataPenyewa" class="flex items-center gap-2 text-[#1265A8] text-xs font-bold group/link">
+                        <p class="text-[11px] text-slate-400 font-medium">Pusat kelola reservasi</p>
+                        <a href="/admin/dashboard/historyBooking" class="flex items-center gap-2 text-[#1265A8] text-xs font-bold group/link">
                             Detail <svg class="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
                         </a>
                     </div>

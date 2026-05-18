@@ -15,16 +15,11 @@ class AdminDashboardController extends Controller
         try {
             $countFasilitas = \Illuminate\Support\Facades\Schema::hasTable('fasilitas') ? Fasilitas::count() : 0;
             $countBooking = \Illuminate\Support\Facades\Schema::hasTable('bookings') ? Booking::count() : 0;
-            // Hitung total booking yang sudah di-approve sebagai representasi data penyewa
-            $countPenyewa = \Illuminate\Support\Facades\Schema::hasTable('bookings') 
-                ? Booking::where('status', 'confirmed')->count() 
-                : 0;
         } catch (\Exception $e) {
             $countFasilitas = 0;
             $countBooking = 0;
-            $countPenyewa = 0;
         }
 
-        return view('admin.dashboard.master', compact('countFasilitas', 'countBooking', 'countPenyewa'));
+        return view('admin.dashboard.master', compact('countFasilitas', 'countBooking'));
     }
 }

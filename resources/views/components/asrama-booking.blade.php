@@ -15,6 +15,15 @@
     currentYear: new Date().getFullYear(),
     daysInMonth: [],
     
+    formatDateLocal(date) {
+        if (!date) return '';
+        const d = new Date(date);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    },
+    
     init() {
         this.updateDaysInMonth();
         this.$watch('children', val => {
@@ -36,7 +45,7 @@
         // Push initial values to parent
         this.$watch('packageType', val => this.$parent.packageType = val);
         this.$watch('selectedDate', val => {
-            if (val) this.$parent.startDate = val.toISOString().split('T')[0];
+            if (val) this.$parent.startDate = this.formatDateLocal(val);
         });
     },
 
@@ -70,7 +79,7 @@
         
         let total = 0;
         if (this.packageType === 'bulanan') {
-            total = this.duration * facility.harga * 30; // 1 month = 30 days
+            total = this.duration * (facility.harga_bulanan || 0); 
         } else {
             total = this.duration * facility.harga;
         }
@@ -81,12 +90,13 @@
             const start = new Date(this.selectedDate);
             const end = new Date(start);
             if (this.packageType === 'harian') {
-                end.setDate(start.getDate() + this.duration - 1);
+                end.setDate(start.getDate() + (parseInt(this.duration) - 1));
             } else {
-                end.setMonth(start.getMonth() + this.duration);
+                end.setMonth(start.getMonth() + parseInt(this.duration));
+                end.setDate(end.getDate() - 1);
             }
-            this.$parent.startDate = start.toISOString().split('T')[0];
-            this.$parent.endDate = end.toISOString().split('T')[0];
+            this.$parent.startDate = this.formatDateLocal(start);
+            this.$parent.endDate = this.formatDateLocal(end);
         }
     },
 
@@ -138,13 +148,15 @@
     isInRange(date) {
         if (!this.selectedDate || !date) return false;
         const start = new Date(this.selectedDate);
+        start.setHours(0,0,0,0);
         const end = new Date(start);
         if (this.packageType === 'harian') {
-            end.setDate(start.getDate() + this.duration - 1);
+            end.setDate(start.getDate() + (parseInt(this.duration) - 1));
         } else {
-            end.setMonth(start.getMonth() + this.duration);
-            end.setDate(start.getDate() - 1);
+            end.setMonth(start.getMonth() + parseInt(this.duration));
+            end.setDate(end.getDate() - 1);
         }
+        date.setHours(0,0,0,0);
         return date >= start && date <= end;
     },
 
@@ -298,6 +310,6 @@
                 </div>
             </div>
         </div>
-        <input type="hidden" name="tgl_mulai" :value="selectedDate ? selectedDate.toISOString().split('T')[0] : ''">
+        <input type="hidden" name="tgl_mulai" :value="formatDateLocal(selectedDate)">
     </div>
 </div>

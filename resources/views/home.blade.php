@@ -167,42 +167,6 @@
                                 <span class="text-xs">📍</span> Malang, Indonesia
                             </div>
                         </div>
-
-                        {{-- Experience Card - Static Modern Style --}}
-                        <div class="absolute -bottom-6 -left-6 lg:-left-12 bg-white p-8 rounded-[2.5rem] shadow-[0_20px_40px_rgba(0,0,0,0.08)] border border-slate-100 hidden sm:block">
-                            
-                            {{-- Garis Aksen Modern (Statis) --}}
-                            <div class="flex items-center gap-3 mb-6">
-                                <div class="w-10 h-[3px] bg-[#1d6fa5] rounded-full"></div>
-                                <div class="w-2 h-[3px] bg-blue-300 rounded-full"></div>
-                            </div>
-                            
-                            <div class="flex items-center gap-6">
-                                {{-- Counter Section --}}
-                                <div class="relative flex items-baseline">
-                                    <span class="text-6xl font-black text-[#1d6fa5] tracking-tighter leading-none">20</span>
-                                    <span class="text-2xl font-bold text-blue-400 ml-1">+</span>
-                                </div>
-                                
-                                {{-- Divider Tipis --}}
-                                <div class="w-px h-12 bg-slate-200"></div>
-                                
-                                {{-- Text Section --}}
-                                <div class="flex flex-col">
-                                    <p class="text-[11px] font-black text-slate-800 uppercase tracking-[0.25em] leading-tight">
-                                        Years Of<br>
-                                        <span class="text-[#1d6fa5]">Excellence</span>
-                                    </p>
-                                    
-                                    {{-- Decorative Square Dots --}}
-                                    <div class="flex gap-1.5 mt-3">
-                                        <div class="w-1.5 h-1.5 bg-slate-200 rotate-45"></div>
-                                        <div class="w-1.5 h-1.5 bg-[#1d6fa5] rotate-45"></div>
-                                        <div class="w-1.5 h-1.5 bg-slate-200 rotate-45"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

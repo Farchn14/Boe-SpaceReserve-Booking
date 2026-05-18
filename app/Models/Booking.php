@@ -15,7 +15,14 @@ class Booking extends Model
         'selected_packages',
         'total_harga',
         'status',
-        'rejection_reason'
+        'rejection_reason',
+        'expired_at',
+        'checkin_at'
+    ];
+
+    protected $casts = [
+        'expired_at' => 'datetime',
+        'checkin_at' => 'datetime',
     ];
 
     public function penyewa()

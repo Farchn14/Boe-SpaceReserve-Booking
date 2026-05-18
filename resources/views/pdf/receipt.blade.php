@@ -66,7 +66,7 @@
 
         <div class="footer">
             <div class="stamp">LUNAS / CONFIRMED</div>
-            <p style="margin-bottom: 40px;">Dicetak pada: {{ date('d F Y, H:i') }}</p>
+            <p style="margin-bottom: 40px;">Dicetak pada: {{ \Carbon\Carbon::now()->format('d F Y, H:i \W\I\B') }}</p>
             <p><b>Administrasi BOE-Reserve</b></p>
             <p class="signature">Dokumen ini sah dikeluarkan melalui sistem elektronik.</p>
         </div>
