@@ -22,6 +22,15 @@
         .status-maintenance { background-color: #fee2e2; color: #991b1b; }
         .status-past        { background-color: #f1f5f9; color: #94a3b8; }
         .status-closed      { background-color: #e2e8f0; color: #94a3b8; opacity: 0.5; cursor: not-allowed; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-4px); }
+            40%, 80% { transform: translateX(4px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-gray-100 min-h-screen font-['Poppins']">
@@ -236,79 +245,244 @@
             </div>
 
             <div class="space-y-6">
-                {{-- Form Inputs --}}
-                <div class="space-y-4">
-                    <div class="relative z-0">
-                        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Nama Lengkap <span class="text-red-500">*</span></label>
-                        <input type="text" x-model="name" placeholder="Masukan nama lengkap Anda" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:border-blue-600 font-medium text-sm">
+                <div x-data="{ 
+                    name: '',
+                    provinsi: '',      // Menyimpan ID Provinsi
+                    provinsiName: '',  // Menyimpan Nama Provinsi
+                    kabupaten: '',     // Menyimpan ID Kabupaten
+                    kabupatenName: '', // Menyimpan Nama Kabupaten
+                    whatsapp: '',
+                    email: '',
+                    fotoPreview: null,
+                    
+                    // State Input Pencarian
+                    searchProvinsi: '',
+                    searchKabupaten: '',
+                    
+                    // Data List dari API
+                    provinces: [],
+                    regencies: [],
+                    loadingProvinsi: true,  
+                    loadingKabupaten: false, 
+                    
+                    // State Buka/Tutup Dropdown (Penyelesaian masalah Scope)
+                    openProvinsi: false,
+                    openKabupaten: false,
+                    
+                    // State Tracker Error & Getar
+                    errors: { name: false, provinsi: false, kabupaten: false, whatsapp: false, email: false, foto: false },
+                    shake: { name: false, provinsi: false, kabupaten: false, whatsapp: false, email: false, foto: false },
+                    fotoErrorMsg: '',
+
+                    // Ambil Data Provinsi saat Halaman Pertama Kali Dimuat
+                    async init() {
+                        this.loadingProvinsi = true;
+                        try {
+                            let response = await fetch('https://www.emsifa.com/api-wilayah-indonesia/api/provinces.json');
+                            this.provinces = await response.json();
+                        } catch (error) {
+                            console.error('Gagal mengambil data provinsi:', error);
+                        } finally {
+                            this.loadingProvinsi = false;
+                        }
+                    },
+
+                    // Ambil Data Kabupaten Berdasarkan ID Provinsi yang Dipilih
+                    async fetchKabupaten(provinsiId) {
+                        this.loadingKabupaten = true;
+                        this.regencies = []; 
+                        this.kabupaten = '';
+                        this.kabupatenName = '';
+                        this.searchKabupaten = ''; // Reset keyword pencarian kota lama
+                        
+                        try {
+                            // PERBAIKAN: Menggunakan endpoint www.emsifa.com agar konsisten dan data berhasil ditarik
+                            let response = await fetch(`https://www.emsifa.com/api-wilayah-indonesia/api/regencies/${provinsiId}.json`);
+                            if (!response.ok) throw new Error('Gagal memuat data kabupaten dari server');
+                            this.regencies = await response.json();
+                        } catch (error) {
+                            console.error('Gagal mengambil data kabupaten:', error);
+                            this.regencies = [];
+                        } finally {
+                            this.loadingKabupaten = false;
+                        }
+                    },
+
+                    // Filter Otomatis untuk Provinsi (Mendukung huruf kecil/kapital saat mengetik)
+                    get filteredProvinces() {
+                        if (!this.searchProvinsi.trim()) return this.provinces;
+                        return this.provinces.filter(p => 
+                            p.name.toLowerCase().includes(this.searchProvinsi.toLowerCase().trim())
+                        );
+                    },
+
+                    // Filter Otomatis untuk Kabupaten (Mendukung huruf kecil/kapital saat mengetik)
+                    get filteredRegencies() {
+                        if (!this.searchKabupaten.trim()) return this.regencies;
+                        return this.regencies.filter(k => 
+                            k.name.toLowerCase().includes(this.searchKabupaten.toLowerCase().trim())
+                        );
+                    },
+
+                    triggerError(field) {
+                        this.errors[field] = true;
+                        this.shake[field] = true;
+                        setTimeout(() => { this.shake[field] = false; }, 400);
+                    },
+
+                    validateField(field) {
+                        if (field === 'name') {
+                            let alphaRegex = /^[a-zA-Z\s]+$/;
+                            this.errors.name = (this.name.trim().length > 0) && (this.name.trim().length < 3 || !alphaRegex.test(this.name));
+                            if (this.errors.name) this.triggerError('name');
+                        }
+                        if (field === 'whatsapp') {
+                            let numericRegex = /^[0-9]+$/;
+                            this.errors.whatsapp = (this.whatsapp.length > 0 && (!numericRegex.test(this.whatsapp) || this.whatsapp.length < 9 || this.whatsapp.length > 14));
+                            if (this.errors.whatsapp) this.triggerError('whatsapp');
+                        }
+                        if (field === 'email') {
+                            let emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                            this.errors.email = (this.email.length > 0 && !emailRegex.test(this.email));
+                            if (this.errors.email) this.triggerError('email');
+                        }
+                    },
+
+                    handleFileChange(e) {
+                        let file = e.target.files[0];
+                        if (!file) return;
+
+                        let allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+                        if (!allowedTypes.includes(file.type)) {
+                            this.fotoErrorMsg = 'Format file harus JPG, JPEG, atau PNG!';
+                            this.triggerError('foto');
+                            this.fotoPreview = null;
+                            e.target.value = '';
+                            return;
+                        }
+
+                        if (file.size > 2 * 1024 * 1024) {
+                            this.fotoErrorMsg = 'Ukuran file terlalu besar! Maksimal 2MB.';
+                            this.triggerError('foto');
+                            this.fotoPreview = null;
+                            e.target.value = '';
+                            return;
+                        }
+
+                        this.errors.foto = false;
+                        let reader = new FileReader();
+                        reader.onload = (event) => { this.fotoPreview = event.target.result; };
+                        reader.readAsDataURL(file);
+                    }
+                }" class="space-y-4">
+
+                    <div class="relative z-0" :class="{ 'animate-shake': shake.name }">
+                        <label class="text-[9px] font-black uppercase tracking-widest ml-4 mb-2 block transition-colors" :class="errors.name ? 'text-red-500' : 'text-gray-400'">
+                            Nama Lengkap <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" x-model="name" @input="validateField('name')" placeholder="Masukan nama lengkap Anda" 
+                            class="w-full px-6 py-4 bg-gray-50 border rounded-3xl outline-none font-medium text-sm transition-all"
+                            :class="errors.name ? 'border-red-500 bg-red-50/30 focus:border-red-600' : 'border-gray-100 focus:border-blue-600'">
+                        <span x-show="errors.name" x-transition class="text-[10px] text-red-500 font-bold ml-4 mt-1 block">Nama minimal 3 karakter & hanya boleh huruf abjad!</span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 z-10 relative">
-                        <!-- Custom Searchable Select: Provinsi -->
-                        <div x-data="{ open: false, search: '' }" class="relative z-30">
-                            <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Provinsi Asal <span class="text-red-500">*</span></label>
-                            <div @click="open = !open" @click.away="open = false" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl outline-none flex justify-between items-center cursor-pointer font-medium text-sm focus-within:border-blue-600 transition-colors">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative" style="z-index: 50;">
+                        
+                        <div class="relative" :class="{ 'animate-shake': shake.provinsi }" style="z-index: 40;">
+                            <label class="text-[9px] font-black uppercase tracking-widest ml-4 mb-2 block transition-colors" :class="errors.provinsi ? 'text-red-500' : 'text-gray-400'">
+                                Provinsi Asal <span class="text-red-500">*</span>
+                            </label>
+                            <div @click.stop="openProvinsi = !openProvinsi; openKabupaten = false" @click.away="openProvinsi = false" 
+                                class="w-full px-6 py-4 bg-gray-50 border rounded-3xl outline-none flex justify-between items-center cursor-pointer font-medium text-sm transition-colors"
+                                :class="errors.provinsi ? 'border-red-500 bg-red-50/30' : 'border-gray-100 focus-within:border-blue-600'">
                                 <span x-text="provinsiName ? provinsiName : 'Pilih Provinsi...'" :class="provinsiName ? 'text-gray-900' : 'text-gray-400'"></span>
-                                <svg class="w-4 h-4" :class="open ? 'text-blue-600 rotate-180 transition-transform' : 'text-gray-400 transition-transform'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                <svg class="w-4 h-4 transition-transform" :class="openProvinsi ? 'text-blue-600 rotate-180' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                             
-                            <div x-show="open" x-transition.opacity class="absolute z-50 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden py-1">
+                            <div x-show="openProvinsi" x-transition.opacity @click.stop class="absolute left-0 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden py-1" style="z-index: 100;">
                                 <div class="p-3 border-b border-gray-50">
-                                    <input x-model="search" type="text" placeholder="Cari Provinsi..." class="w-full bg-gray-50 text-xs px-4 py-3 rounded-xl outline-none border border-gray-100 focus:border-blue-400">
+                                    <input x-model="searchProvinsi" type="text" placeholder="Cari Provinsi..." class="w-full bg-gray-50 text-xs px-4 py-3 rounded-xl outline-none border border-gray-100 focus:border-blue-400">
                                 </div>
                                 <div class="max-h-48 overflow-y-auto custom-scrollbar">
-                                    <template x-for="p in provinces.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))" :key="p.id">
-                                        <div @click="provinsi = p.id; open = false; search = ''" class="px-5 py-3 hover:bg-blue-50 cursor-pointer text-xs font-bold text-gray-700 transition" x-text="p.name"></div>
+                                    <div x-show="loadingProvinsi" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Memuat provinsi...</div>
+                                    <template x-for="p in filteredProvinces" :key="p.id">
+                                        <div @click="provinsi = p.id; provinsiName = p.name; errors.provinsi = false; openProvinsi = false; searchProvinsi = ''; fetchKabupaten(p.id)" 
+                                            class="px-5 py-3 hover:bg-blue-50 cursor-pointer text-xs font-bold text-gray-700 transition text-left" x-text="p.name"></div>
                                     </template>
-                                    <div x-show="provinces.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).length === 0" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Tidak ditemukan</div>
+                                    <div x-show="!loadingProvinsi && filteredProvinces.length === 0" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Tidak ditemukan</div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Custom Searchable Select: Kabupaten -->
-                        <div x-data="{ open: false, search: '' }" class="relative z-20">
-                            <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Kabupaten / Kota <span class="text-red-500">*</span></label>
-                            <div @click="if(provinsi) open = !open" @click.away="open = false" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl outline-none flex justify-between items-center cursor-pointer font-medium text-sm transition-colors" :class="!provinsi ? 'opacity-50 cursor-not-allowed' : 'focus-within:border-blue-600'">
-                                <span x-text="kabupatenName ? kabupatenName : 'Pilih Kota/Kabupaten...'" :class="kabupatenName ? 'text-gray-900' : 'text-gray-400'"></span>
-                                <svg class="w-4 h-4" :class="open ? 'text-blue-600 rotate-180 transition-transform' : 'text-gray-400 transition-transform'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        <div class="relative" :class="{ 'animate-shake': shake.kabupaten }" style="z-index: 30;">
+                            <label class="text-[9px] font-black uppercase tracking-widest ml-4 mb-2 block transition-colors" :class="errors.kabupaten ? 'text-red-500' : 'text-gray-400'">
+                                Kabupaten / Kota <span class="text-red-500">*</span>
+                            </label>
+                            <div @click.stop="if(!provinsi) { triggerError('provinsi') } else { openKabupaten = !openKabupaten; openProvinsi = false }" @click.away="openKabupaten = false" 
+                                class="w-full px-6 py-4 bg-gray-50 border rounded-3xl outline-none flex justify-between items-center cursor-pointer font-medium text-sm transition-colors" 
+                                :class="!provinsi ? 'opacity-50 cursor-not-allowed border-gray-100' : errors.kabupaten ? 'border-red-500 bg-red-50/30' : 'border-gray-100 focus-within:border-blue-600'">
+                                
+                                <span x-text="loadingKabupaten ? 'Memuat data kota...' : kabupatenName ? kabupatenName : 'Pilih Kota/Kabupaten...'" 
+                                    :class="kabupatenName ? 'text-gray-900' : 'text-gray-400'"></span>
+                                
+                                <svg class="w-4 h-4 transition-transform" :class="openKabupaten ? 'text-blue-600 rotate-180' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                             </div>
                             
-                            <div x-show="open" x-transition.opacity class="absolute z-50 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden py-1">
+                            <div x-show="openKabupaten && provinsi" x-transition.opacity @click.stop class="absolute left-0 w-full mt-2 bg-white border border-gray-100 shadow-2xl rounded-2xl overflow-hidden py-1" style="z-index: 100;">
                                 <div class="p-3 border-b border-gray-50">
-                                    <input x-model="search" type="text" placeholder="Cari Kota..." class="w-full bg-gray-50 text-xs px-4 py-3 rounded-xl outline-none border border-gray-100 focus:border-blue-400">
+                                    <input x-model="searchKabupaten" type="text" placeholder="Cari Kota..." class="w-full bg-gray-50 text-xs px-4 py-3 rounded-xl outline-none border border-gray-100 focus:border-blue-400">
                                 </div>
                                 <div class="max-h-48 overflow-y-auto custom-scrollbar">
-                                    <template x-for="k in regencies.filter(k => k.name.toLowerCase().includes(search.toLowerCase()))" :key="k.id">
-                                        <div @click="kabupaten = k.id; open = false; search = ''" class="px-5 py-3 hover:bg-blue-50 cursor-pointer text-xs font-bold text-gray-700 transition" x-text="k.name"></div>
+                                    <div x-show="loadingKabupaten" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Memuat data kabupaten...</div>
+                                    <template x-for="k in filteredRegencies" :key="k.id">
+                                        <div @click="kabupaten = k.id; kabupatenName = k.name; errors.kabupaten = false; openKabupaten = false; searchKabupaten = ''" 
+                                            class="px-5 py-3 hover:bg-blue-50 cursor-pointer text-xs font-bold text-gray-700 transition text-left" x-text="k.name"></div>
                                     </template>
-                                    <div x-show="regencies.filter(k => k.name.toLowerCase().includes(search.toLowerCase())).length === 0" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Tidak ditemukan</div>
+                                    <div x-show="!loadingKabupaten && filteredRegencies.length === 0" class="px-5 py-3 text-xs font-bold text-gray-400 text-center">Tidak ditemukan</div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-0">
-                        <div class="relative">
-                            <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Nomor HP / WhatsApp <span class="text-red-500">*</span></label>
-                            <input type="text" x-model="whatsapp" placeholder="08xxxxx" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:border-blue-600 font-medium text-sm">
+                        <div class="relative" :class="{ 'animate-shake': shake.whatsapp }">
+                            <label class="text-[9px] font-black uppercase tracking-widest ml-4 mb-2 block transition-colors" :class="errors.whatsapp ? 'text-red-500' : 'text-gray-400'">
+                                Nomor HP / WhatsApp <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" x-model="whatsapp" @input="validateField('whatsapp')" placeholder="08xxxxx" 
+                                class="w-full px-6 py-4 bg-gray-50 border rounded-3xl outline-none font-medium text-sm transition-all"
+                                :class="errors.whatsapp ? 'border-red-500 bg-red-50/30 focus:border-red-600' : 'border-gray-100 focus:border-blue-600'">
+                            <span x-show="errors.whatsapp" x-transition class="text-[10px] text-red-500 font-bold ml-4 mt-1 block">Gunakan nomor HP valid (9-14 digit angka)</span>
                         </div>
-                        <div class="relative">
-                            <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2 block">Email Aktif <span class="text-red-500">*</span></label>
-                            <input type="email" x-model="email" placeholder="example@mail.com" class="w-full px-6 py-4 bg-gray-50 border border-gray-100 rounded-3xl outline-none focus:border-blue-600 font-medium text-sm">
+
+                        <div class="relative" :class="{ 'animate-shake': shake.email }">
+                            <label class="text-[9px] font-black uppercase tracking-widest ml-4 mb-2 block transition-colors" :class="errors.email ? 'text-red-500' : 'text-gray-400'">
+                                Email Aktif <span class="text-red-500">*</span>
+                            </label>
+                            <input type="email" x-model="email" @input="validateField('email')" placeholder="example@mail.com" 
+                                class="w-full px-6 py-4 bg-gray-50 border rounded-3xl outline-none font-medium text-sm transition-all"
+                                :class="errors.email ? 'border-red-500 bg-red-50/30 focus:border-red-600' : 'border-gray-100 focus:border-blue-600'">
+                            <span x-show="errors.email" x-transition class="text-[10px] text-red-500 font-bold ml-4 mt-1 block">Format alamat email tidak sesuai</span>
                         </div>
                     </div>
                     
-                    {{-- Upload Foto Identitas --}}
-                    <div class="relative z-0 mt-4 p-6 bg-white border border-gray-100 rounded-3xl shadow-sm">
-                        <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-4">Upload Foto Identitas <span class="text-red-500">*</span></label>
+                    <div class="relative z-0 mt-4 p-6 bg-white border rounded-3xl shadow-sm transition-all" :class="errors.foto ? 'border-red-500 bg-red-50/10 animate-shake' : 'border-gray-100'">
+                        <label class="text-[9px] font-black uppercase tracking-widest block mb-4 transition-colors" :class="errors.foto ? 'text-red-500' : 'text-gray-400'">
+                            Upload Foto Identitas <span class="text-red-500">*</span>
+                        </label>
                         <div class="flex flex-col md:flex-row gap-6">
                             <div class="flex-1">
-                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 hover:border-blue-500 transition-all">
+                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-2xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-all"
+                                    :class="errors.foto ? 'border-red-400 hover:border-red-500' : 'border-gray-300 hover:border-blue-500'">
                                     <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                        <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                        <p class="mb-1 text-xs font-semibold text-gray-500">Klik untuk unggah file</p>
-                                        <p class="text-[10px] text-gray-400">JPG, JPEG, PNG (Maks. 2MB)</p>
+                                        <svg class="w-8 h-8 mb-2 transition-colors" :class="errors.foto ? 'text-red-400' : 'text-gray-400'" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                                        <p class="mb-1 text-xs font-semibold" :class="errors.foto ? 'text-red-500' : 'text-gray-500'">Klik untuk unggah file</p>
+                                        <p class="text-[10px]" :class="errors.foto ? 'text-red-400' : 'text-gray-400'">JPG, JPEG, PNG (Maks. 2MB)</p>
                                     </div>
                                     <input type="file" class="hidden" accept="image/jpeg,image/png,image/jpg" @change="handleFileChange" />
                                 </label>
+                                <span x-show="errors.foto" x-text="fotoErrorMsg" x-transition class="text-[10px] text-red-500 font-bold mt-2 block"></span>
+
                                 <div class="mt-3 p-3 bg-blue-50 rounded-xl flex items-start gap-3">
                                     <svg class="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                     <p class="text-[10px] text-blue-700 font-medium leading-relaxed">
@@ -317,8 +491,7 @@
                                 </div>
                             </div>
                             
-                            {{-- Live Preview --}}
-                            <div class="w-full md:w-48 flex flex-col items-center justify-center border border-gray-100 bg-gray-50 rounded-2xl overflow-hidden relative min-h-[8rem]">
+                            <div class="w-full md:w-48 flex flex-col items-center justify-center border bg-gray-50 rounded-2xl overflow-hidden relative min-h-[8rem]" :class="errors.foto ? 'border-red-200' : 'border-gray-100'">
                                 <template x-if="fotoPreview">
                                     <div class="w-full h-full">
                                         <img :src="fotoPreview" class="object-cover w-full h-full absolute inset-0" alt="Preview Identitas">
@@ -329,8 +502,8 @@
                                 </template>
                                 <template x-if="!fotoPreview">
                                     <div class="text-center p-4">
-                                        <svg class="w-8 h-8 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                        <p class="text-[10px] font-bold text-gray-400">Belum ada foto</p>
+                                        <svg class="w-8 h-8 mx-auto mb-2" :class="errors.foto ? 'text-red-300' : 'text-gray-300'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                        <p class="text-[10px] font-bold" :class="errors.foto ? 'text-red-400' : 'text-gray-400'">Belum ada foto</p>
                                     </div>
                                 </template>
                             </div>

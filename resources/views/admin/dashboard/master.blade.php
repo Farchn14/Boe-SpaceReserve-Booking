@@ -90,6 +90,8 @@
             'headerSubtitle' => 'Selamat datang di pusat kendali operasional anda.'
         ])
 
+        <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
         {{-- Dashboard Summary --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
             
@@ -269,184 +271,183 @@
     </button>
 
     <script>
-    // Sidebar Toggle (untuk Mobile)
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar-container') || document.querySelector('aside');
-        if (sidebar) {
-            sidebar.classList.toggle('-translate-x-full');
+        // Sidebar Toggle (untuk Mobile)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar-container') || document.querySelector('aside');
+            if (sidebar) {
+                sidebar.classList.toggle('-translate-x-full');
+            }
         }
-    }
 
-    // Chart Initialization
-    function initCharts() {
-        const ctxLine = document.getElementById('lineChart')?.getContext('2d');
-        const ctxDoughnut = document.getElementById('doughnutChart')?.getContext('2d');
-        
-        if (!ctxLine || !ctxDoughnut) return;
+        // Chart Initialization
+        function initCharts() {
+            const ctxLine = document.getElementById('lineChart')?.getContext('2d');
+            const ctxDoughnut = document.getElementById('doughnutChart')?.getContext('2d');
+            
+            if (!ctxLine || !ctxDoughnut) return;
 
-        // --- Line Chart ---
-        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-        new Chart(ctxLine, {
-            type: 'line',
-            data: {
-                labels: months,
-                datasets: [{
-                    label: 'Tingkat Okupansi',
-                    data: [10, 25, 20, 35, 30, 45, 50, 40, 60, 75, 80, 95],
-                    borderColor: '#1265A8',
-                    backgroundColor: '#ffffff',
-                    fill: true,
-                    tension: 0.4
-                    
-                }]
-            },
-            options: { 
-                responsive: true, 
-                maintainAspectRatio: false, 
-                plugins: { 
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => ` ${context.parsed.y}%`
-                        }
-                    }
+            // --- Line Chart ---
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: [{
+                        label: 'Tingkat Okupansi',
+                        data: [10, 25, 20, 35, 30, 45, 50, 40, 60, 75, 80, 95],
+                        borderColor: '#1265A8',
+                        backgroundColor: '#ffffff',
+                        fill: true,
+                        tension: 0.4
+                        
+                    }]
                 },
-                scales: {
-                    y: {
-                        min: 0,
-                        max: 100,
-                        beginAtZero: true,
-                        border: { display: false },
-                        grid: {
-                            color: '#f1f5f9', 
-                            drawTicks: false
-                        },
-                        ticks: {
-                            stepSize: 20, 
-                            padding: 10,
-                            callback: function(value) {
-                                return value + '%'; 
-                            },
-                            font: { 
-                                family: "'Plus Jakarta Sans'", 
-                                size: 12,
-                                weight: '500'
-                            },
-                            color: '#64748b' 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => ` ${context.parsed.y}%`
+                            }
                         }
                     },
-                    x: {
-                        grid: { display: false },
-                        ticks: { color: '#64748b' }
-                    }
-                }
-            }
-        });
-
-        // --- Doughnut Chart ---
-        new Chart(ctxDoughnut, {
-            type: 'doughnut',
-            data: {
-                labels: ['Asrama Tunggul Ametung', 'Asrama Ken Umang', 'Asrama Kendedes', 'Asrama Ken Arok', 'Asrama Kertajaya', 'Aula Utama'],
-                datasets: [{
-                    data: [30, 20, 15, 10, 15, 10], // Persentase/Jumlah data
-                    backgroundColor: [
-                        '#1265A8', // Biru Utama
-                        '#4292DC', // Biru Muda
-                        '#94a3b8', // Slate 400
-                        '#cbd5e1', // Slate 300
-                        '#1e293b', // Slate 800
-                        '#e2e8f0'  // Slate 200
-                    ],
-                    borderWidth: 4,
-                    borderColor: '#ffffff',
-                    hoverOffset: 15
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '70%', // Membuat lubang tengah lebih besar 
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20,
-                            font: { family: "'Plus Jakarta Sans'", size: 11, weight: '600' }
+                    scales: {
+                        y: {
+                            min: 0,
+                            max: 100,
+                            beginAtZero: true,
+                            border: { display: false },
+                            grid: {
+                                color: '#f1f5f9', 
+                                drawTicks: false
+                            },
+                            ticks: {
+                                stepSize: 20, 
+                                padding: 10,
+                                callback: function(value) {
+                                    return value + '%'; 
+                                },
+                                font: { 
+                                    family: "'Plus Jakarta Sans'", 
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#64748b' 
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#64748b' }
                         }
                     }
                 }
+            });
+
+            // --- Doughnut Chart ---
+            new Chart(ctxDoughnut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Asrama Tunggul Ametung', 'Asrama Ken Umang', 'Asrama Kendedes', 'Asrama Ken Arok', 'Asrama Kertajaya', 'Aula Utama'],
+                    datasets: [{
+                        data: [30, 20, 15, 10, 15, 10], // Persentase/Jumlah data
+                        backgroundColor: [
+                            '#1265A8', // Biru Utama
+                            '#4292DC', // Biru Muda
+                            '#94a3b8', // Slate 400
+                            '#cbd5e1', // Slate 300
+                            '#1e293b', // Slate 800
+                            '#e2e8f0'  // Slate 200
+                        ],
+                        borderWidth: 4,
+                        borderColor: '#ffffff',
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%', // Membuat lubang tengah lebih besar 
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: { family: "'Plus Jakarta Sans'", size: 11, weight: '600' }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Animasi Angka (Statistik)
+        function animateCounters() {
+            const counters = document.querySelectorAll('.stat-value');
+            counters.forEach(counter => {
+                const target = +counter.getAttribute('data-target');
+                const duration = 1500;
+                const startTime = performance.now();
+
+                const updateCount = (currentTime) => {
+                    const elapsedTime = currentTime - startTime;
+                    const progress = Math.min(elapsedTime / duration, 1);
+                    const easeOutQuad = (t) => t * (2 - t);
+                    
+                    counter.innerText = Math.floor(easeOutQuad(progress) * target);
+
+                    if (progress < 1) requestAnimationFrame(updateCount);
+                    else counter.innerText = target;
+                };
+                requestAnimationFrame(updateCount);
+            });
+        }
+
+        // Loading State pada Tombol Navigasi
+        function handleNavClick(event, el) {
+            const targetUrl = el.getAttribute('href');
+            if (!targetUrl || targetUrl === '#') return;
+
+            event.preventDefault();
+            const isDarkBtn = el.classList.contains('bg-slate-900');
+            const spinnerColor = isDarkBtn ? 'text-white' : 'text-blue-500';
+
+            el.innerHTML = `
+                <div class="flex items-center justify-center gap-3">
+                    <svg class="animate-spin h-5 w-5 ${spinnerColor}" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span class="animate-pulse">MEMUAT...</span>
+                </div>
+            `;
+            el.classList.add('pointer-events-none', 'opacity-80');
+            setTimeout(() => { window.location.href = targetUrl; }, 600);
+        }
+
+        // Eksekusi saat halaman siap
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            animateCounters();
+        });
+
+        // Back to Top Logic
+        const backToTopBtn = document.getElementById('backToTop');
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 400) {
+                backToTopBtn.classList.remove('translate-y-20', 'opacity-0');
+                backToTopBtn.classList.add('translate-y-0', 'opacity-100');
+            } else {
+                backToTopBtn.classList.add('translate-y-20', 'opacity-0');
+                backToTopBtn.classList.remove('translate-y-0', 'opacity-100');
             }
         });
-    }
 
-    // Animasi Angka (Statistik)
-    function animateCounters() {
-        const counters = document.querySelectorAll('.stat-value');
-        counters.forEach(counter => {
-            const target = +counter.getAttribute('data-target');
-            const duration = 1500;
-            const startTime = performance.now();
-
-            const updateCount = (currentTime) => {
-                const elapsedTime = currentTime - startTime;
-                const progress = Math.min(elapsedTime / duration, 1);
-                const easeOutQuad = (t) => t * (2 - t);
-                
-                counter.innerText = Math.floor(easeOutQuad(progress) * target);
-
-                if (progress < 1) requestAnimationFrame(updateCount);
-                else counter.innerText = target;
-            };
-            requestAnimationFrame(updateCount);
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
-    }
-
-    // Loading State pada Tombol Navigasi
-    function handleNavClick(event, el) {
-        const targetUrl = el.getAttribute('href');
-        if (!targetUrl || targetUrl === '#') return;
-
-        event.preventDefault();
-        const isDarkBtn = el.classList.contains('bg-slate-900');
-        const spinnerColor = isDarkBtn ? 'text-white' : 'text-blue-500';
-
-        el.innerHTML = `
-            <div class="flex items-center justify-center gap-3">
-                <svg class="animate-spin h-5 w-5 ${spinnerColor}" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-                </svg>
-                <span class="animate-pulse">MEMUAT...</span>
-            </div>
-        `;
-        el.classList.add('pointer-events-none', 'opacity-80');
-        setTimeout(() => { window.location.href = targetUrl; }, 600);
-    }
-
-    // Eksekusi saat halaman siap
-    document.addEventListener('DOMContentLoaded', () => {
-        initCharts();
-        animateCounters();
-    });
-
-    // Back to Top Logic
-    const backToTopBtn = document.getElementById('backToTop');
-    window.addEventListener('scroll', () => {
-        if (window.scrollY > 400) {
-            backToTopBtn.classList.remove('translate-y-20', 'opacity-0');
-            backToTopBtn.classList.add('translate-y-0', 'opacity-100');
-        } else {
-            backToTopBtn.classList.add('translate-y-20', 'opacity-0');
-            backToTopBtn.classList.remove('translate-y-0', 'opacity-100');
-        }
-    });
-
-    backToTopBtn.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-</script>
-
+    </script>
 </body>
 </html>
