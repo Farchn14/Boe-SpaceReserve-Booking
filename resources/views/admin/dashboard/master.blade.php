@@ -238,7 +238,7 @@
                     <p class="text-slate-400 text-sm mb-8">Kelola hak akses dan pantau aktivitas administrator sistem.</p>
                     
                     <div class="flex flex-col gap-3">
-                        <a href="/admin/dashboard/management/add_new_admin" onclick="handleNavClick(event, this)" class="nav-btn-loading flex items-center justify-center w-full px-6 py-4 bg-white text-slate-600 border-2 border-slate-100 rounded-2xl font-bold text-sm hover:border-[#4292DC] hover:text-[#4292DC] transition-all">
+                        <a href="/admin/dashboard/management/add_new_admin?from=dashboardMaster" onclick="handleNavClick(event, this)" class="nav-btn-loading flex items-center justify-center w-full px-6 py-4 bg-white text-slate-600 border-2 border-slate-100 rounded-2xl font-bold text-sm hover:border-[#4292DC] hover:text-[#4292DC] transition-all">
                             <span class="btn-text flex items-center">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
                                 Tambah Admin Baru

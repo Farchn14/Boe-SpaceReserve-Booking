@@ -53,8 +53,10 @@ Route::get('/admin/dashboard/blokir-internal', [KontrolJadwalController::class, 
 Route::middleware(['admin.access'])->group(function () {
     // Route Khusus Owner
     Route::middleware(['admin.access:owner'])->group(function () {
-        Route::get('/admin/dashboard/management/add_new_admin', function () {
-            return view('admin.dashboard.management.add_new_admin');
+        Route::get('/admin/dashboard/management/add_new_admin', function (\Illuminate\Http\Request $request) {
+            return view('admin.dashboard.management.add_new_admin', [
+                'from' => $request->query('from', '')
+            ]);
         })->name('dashboardAddNewAdmin');
         
         Route::post('/admin/store', [AdminsController::class, 'store'])->name('admin.store');
