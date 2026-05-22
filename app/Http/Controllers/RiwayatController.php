@@ -16,10 +16,10 @@ class RiwayatController extends Controller
     {
         $query = Booking::with(['penyewa', 'fasilitas'])
             ->where(function ($q) {
-                $q->whereIn('status', ['rejected', 'cancelled', 'completed'])
+                $q->whereIn('status', ['rejected', 'cancelled', 'completed', 'booked'])
                   ->orWhere(function ($q2) {
                       $q2->where('status', 'confirmed')
-                         ->where('tgl_selesai', '<', now()->toDateTimeString());
+                         ->where('tgl_selesai', '<', now()->toDateString());
                   });
             });
 
@@ -80,16 +80,16 @@ class RiwayatController extends Controller
     {
         if ($request->all_select === 'true') {
             // Delete all finalized records
-            $count = Booking::whereIn('status', ['rejected', 'cancelled', 'completed'])
+            $count = Booking::whereIn('status', ['rejected', 'cancelled', 'completed', 'booked'])
                 ->orWhere(function ($q2) {
                     $q2->where('status', 'confirmed')
-                       ->where('tgl_selesai', '<', now()->toDateTimeString());
+                       ->where('tgl_selesai', '<', now()->toDateString());
                 })->count();
 
-            Booking::whereIn('status', ['rejected', 'cancelled', 'completed'])
+            Booking::whereIn('status', ['rejected', 'cancelled', 'completed', 'booked'])
                 ->orWhere(function ($q2) {
                     $q2->where('status', 'confirmed')
-                       ->where('tgl_selesai', '<', now()->toDateTimeString());
+                       ->where('tgl_selesai', '<', now()->toDateString());
                 })->delete();
 
             AuditLog::catat('Batch Delete History', "Mencuci seluruh data riwayat ({$count} records).");

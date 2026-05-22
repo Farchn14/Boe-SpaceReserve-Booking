@@ -79,6 +79,11 @@
         .group:hover .icon-float {
             transform: scale(1.1) rotate(5deg);
         }
+
+        .counter-val {
+            will-change: transform, opacity;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -94,10 +99,9 @@
 
         {{-- Dashboard Summary --}}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-            
+            {{-- Card Data Fasilitas --}}
             <div class="glass-card-modern card-hover group p-7 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden">
                 <div class="absolute -right-6 -top-6 w-24 h-24 bg-blue-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
-                
                 <div class="relative z-10">
                     <div class="flex justify-between items-center mb-6">
                         <div class="p-3 bg-blue-50 rounded-2xl icon-float transition-transform duration-300">
@@ -105,20 +109,22 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
                             </svg>
                         </div>
+                        {{-- Badge dinamis: tampilkan jumlah fasilitas aktif --}}
                         <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 text-[11px] font-extrabold tracking-wider">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-                            +12.5%
+                            {{ $countFasilitas }} Unit
                         </span>
                     </div>
-                    
                     <div class="space-y-1 mb-6">
                         <h3 class="text-slate-500 text-xs font-bold uppercase tracking-[0.15em]">Data Fasilitas</h3>
                         <div class="flex items-baseline gap-2">
-                            <p class="stat-value text-5xl font-black tracking-tighter text-slate-800" data-target="{{ $countFasilitas }}">0</p>
+                            <p class="counter-val text-5xl font-black tracking-tighter text-slate-800"
+                            data-target="{{ $countFasilitas }}"
+                            data-prefix=""
+                            data-suffix="">0</p>
                             <span class="text-slate-400 font-bold text-sm">Units</span>
                         </div>
                     </div>
-
                     <div class="pt-5 border-t border-slate-100/80 flex justify-between items-center">
                         <p class="text-[11px] text-slate-400 font-medium">Monitoring ketersediaan</p>
                         <a href="/admin/dashboard/dataFasilitas" class="flex items-center gap-2 text-[#1265A8] text-xs font-bold group/link">
@@ -128,9 +134,9 @@
                 </div>
             </div>
 
+            {{-- Card History Booking --}}
             <div class="glass-card-modern card-hover group p-7 rounded-[2.5rem] transition-all duration-500 relative overflow-hidden">
                 <div class="absolute -right-6 -top-6 w-24 h-24 bg-indigo-50 rounded-full opacity-50 group-hover:scale-150 transition-transform duration-700"></div>
-                
                 <div class="relative z-10">
                     <div class="flex justify-between items-center mb-6">
                         <div class="p-3 bg-indigo-50 rounded-2xl icon-float transition-transform duration-300">
@@ -138,20 +144,23 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
                         </div>
+                        {{-- Badge dinamis: tampilkan booking bulan ini --}}
+                        @php $bookingBulanIni = $bookingPerBulan[now()->month - 1] ?? 0; @endphp
                         <span class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 text-[11px] font-extrabold tracking-wider">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
-                            Active
+                            {{ $bookingBulanIni }} Bulan ini
                         </span>
                     </div>
-                    
                     <div class="space-y-1 mb-6">
                         <h3 class="text-slate-500 text-xs font-bold uppercase tracking-[0.15em]">History Booking</h3>
                         <div class="flex items-baseline gap-2">
-                            <p class="stat-value text-5xl font-black tracking-tighter text-slate-800" data-target="{{ $countBooking }}">0</p>
+                            <p class="counter-val text-5xl font-black tracking-tighter text-slate-800"
+                            data-target="{{ $countBooking }}"
+                            data-prefix=""
+                            data-suffix="">0</p>
                             <span class="text-slate-400 font-bold text-sm">Records</span>
                         </div>
                     </div>
-
                     <div class="pt-5 border-t border-slate-100/80 flex justify-between items-center">
                         <p class="text-[11px] text-slate-400 font-medium">Pusat kelola reservasi</p>
                         <a href="/admin/dashboard/historyBooking" class="flex items-center gap-2 text-[#1265A8] text-xs font-bold group/link">
@@ -160,30 +169,118 @@
                     </div>
                 </div>
             </div>
-
         </div>
 
         {{-- Analytics --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 searchable-section">
-                <h4 class="text-sm font-bold text-slate-700 mb-6 flex items-center">
-                    <span class="w-2 h-2 bg-[#1265A8] rounded-full mr-2"></span> Data Pengunjung (Jan - Des)
-                </h4>
-                <div class="chart-wrapper">
+            {{-- Analytics: Data Pengunjung --}}
+            <div class="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-sm border border-slate-100">
+
+                {{-- Header --}}
+                <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-700 flex items-center">
+                            <span class="w-2 h-2 bg-[#1265A8] rounded-full mr-2"></span>
+                            Data Pengunjung
+                        </h4>
+                        <p class="text-[11px] text-slate-400 ml-4 mt-0.5">Jumlah booking aktif per bulan</p>
+                    </div>
+                    <span class="bg-blue-50 text-[#0C447C] text-[11px] font-semibold px-3 py-1.5 rounded-full">
+                        {{ now()->year }}
+                    </span>
+                </div>
+
+                {{-- Stat Cards --}}
+                @php
+                    $total     = $bookingPerBulan->sum();
+                    $peakVal   = $bookingPerBulan->max();
+                    $peakMonth = $bookingPerBulan->search($peakVal);
+                    $avg       = $total > 0 ? round($total / 12) : 0;
+                    $monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+                @endphp
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-slate-50 rounded-2xl p-4">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total tahun ini</p>
+                        <p class="text-xl font-black text-slate-800">{{ $total }}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 mt-1 inline-block">↑ aktif</span>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-3.5">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Bulan tertinggi</p>
+                        <p class="text-xl font-black text-slate-800">{{ $peakVal > 0 ? $monthNames[$peakMonth] : '—' }}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 mt-1 inline-block">
+                            {{ $peakVal > 0 ? $peakVal.' booking' : '—' }}
+                        </span>
+                    </div>
+                    <div class="bg-slate-50 rounded-2xl p-3.5">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Rata-rata / bulan</p>
+                        <p class="text-xl font-black text-slate-800">{{ $avg }}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 mt-1 inline-block">booking</span>
+                    </div>
+                </div>
+
+                {{-- Chart --}}
+                <div class="chart-wrapper mt-2">
                     <div class="chart-area">
                         <canvas id="lineChart"></canvas>
                     </div>
                 </div>
+
+                {{-- Legend --}}
+                <div class="flex items-center gap-2 mt-4 pb-1">
+                    <span class="w-2 h-2 rounded-full bg-[#1265A8]"></span>
+                    <span class="text-[10px] text-slate-400">Booking diterima (exclude rejected & cancelled)</span>
+                </div>
             </div>
 
-            <div class="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-sm border border-slate-100 searchable-section">
-                <h4 class="text-sm font-bold text-slate-700 mb-6 flex items-center">
-                    <span class="w-2 h-2 bg-[#1265A8] rounded-full mr-2"></span> Data Fasilitas
-                </h4>
-                <div class="chart-wrapper flex justify-center items-center">
-                    <div class="relative w-full h-[250px] flex justify-center">
+            {{-- Analytics: Data Fasilitas --}}
+            <div class="p-8 md:p-10 rounded-[2.5rem] border border-white/75"
+                style="background:rgba(255,255,255,0.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:0 8px 32px rgba(18,101,168,0.08);">
+
+                {{-- Header --}}
+                <div class="flex items-start justify-between mb-6 flex-wrap gap-3">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800 flex items-center">
+                            <span class="w-2 h-2 bg-[#1265A8] rounded-full mr-2"></span>
+                            Data Fasilitas
+                        </h4>
+                        <p class="text-[11px] text-slate-400 ml-4 mt-0.5">Distribusi booking per fasilitas</p>
+                    </div>
+                    <span class="text-[11px] font-semibold px-3 py-1.5 rounded-full border"
+                        style="background:rgba(18,101,168,0.08);color:#0C447C;border-color:rgba(18,101,168,0.15);">
+                        {{ $fasilitasChart->count() }} fasilitas
+                    </span>
+                </div>
+
+                {{-- Stat Cards --}}
+                @php
+                    $topFas     = $fasilitasChart->sortByDesc('bookings_count')->first();
+                    $totalAktif = $fasilitasChart->sum('bookings_count');
+                    $topPct     = $totalAktif > 0 ? round($topFas?->bookings_count / $totalAktif * 100) : 0;
+                @endphp
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="rounded-[1.25rem] p-4 border border-white/80" style="background:rgba(255,255,255,0.6);">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Fasilitas terbanyak</p>
+                        <p class="text-lg font-black text-slate-900 truncate">{{ $topFas?->nama ?? '—' }}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5 inline-block"
+                            style="background:rgba(18,101,168,0.1);color:#0C447C;">
+                            {{ $topFas?->bookings_count ?? 0 }} booking · {{ $topPct }}%
+                        </span>
+                    </div>
+                    <div class="rounded-[1.25rem] p-4 border border-white/80" style="background:rgba(255,255,255,0.6);">
+                        <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-1">Total booking aktif</p>
+                        <p class="text-lg font-black text-slate-900">{{ $totalAktif }}</p>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full mt-1.5 inline-block bg-slate-100 text-slate-500">
+                            semua fasilitas
+                        </span>
+                    </div>
+                </div>
+
+                {{-- Chart + Legend --}}
+                <div class="flex items-center gap-6">
+                    <div class="relative flex-shrink-0" style="width:175px;height:175px;">
                         <canvas id="doughnutChart"></canvas>
                     </div>
+                    <div class="flex-1 flex flex-col gap-2.5 min-w-0" id="fasilitasLegend"></div>
                 </div>
             </div>
         </div>
@@ -287,95 +384,142 @@
             if (!ctxLine || !ctxDoughnut) return;
 
             // --- Line Chart ---
-            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const grad = ctxLine.createLinearGradient(0, 0, 0, 250);
+            grad.addColorStop(0, 'rgba(18,101,168,0.18)');
+            grad.addColorStop(1, 'rgba(18,101,168,0)');
+
+            const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+            const bookingData = @json($bookingPerBulan->values());
+
             new Chart(ctxLine, {
                 type: 'line',
                 data: {
                     labels: months,
                     datasets: [{
-                        label: 'Tingkat Okupansi',
-                        data: [10, 25, 20, 35, 30, 45, 50, 40, 60, 75, 80, 95],
+                        label: 'Booking',
+                        data: bookingData,
                         borderColor: '#1265A8',
-                        backgroundColor: '#ffffff',
+                        borderWidth: 2.5,
+                        backgroundColor: grad,
                         fill: true,
-                        tension: 0.4
-                        
+                        tension: 0.45,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#1265A8',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#1265A8',
+                        pointHoverBorderColor: '#ffffff',
+                        pointHoverBorderWidth: 2,
                     }]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    plugins: { 
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            padding: 12,
+                            cornerRadius: 12,
+                            titleFont: { size: 11, weight: '500' },
+                            bodyFont: { size: 13, weight: '500' },
                             callbacks: {
-                                label: (context) => ` ${context.parsed.y}%`
+                                title: (items) => months[items[0].dataIndex],
+                                label: (ctx) => '  ' + ctx.parsed.y + ' booking',
                             }
                         }
                     },
                     scales: {
                         y: {
                             min: 0,
-                            max: 100,
                             beginAtZero: true,
-                            border: { display: false },
-                            grid: {
-                                color: '#f1f5f9', 
-                                drawTicks: false
-                            },
+                            border: { display: false, dash: [4, 4] },
+                            grid: { color: '#f1f5f9', drawTicks: false },
                             ticks: {
-                                stepSize: 20, 
                                 padding: 10,
-                                callback: function(value) {
-                                    return value + '%'; 
-                                },
-                                font: { 
-                                    family: "'Plus Jakarta Sans'", 
-                                    size: 12,
-                                    weight: '500'
-                                },
-                                color: '#64748b' 
+                                maxTicksLimit: 6,        // ← ganti stepSize dengan ini
+                                precision: 0,            // ← pastikan integer, bukan desimal
+                                color: '#64748b',
+                                font: { size: 11, weight: '500', family: "'Plus Jakarta Sans'" },
                             }
                         },
                         x: {
                             grid: { display: false },
-                            ticks: { color: '#64748b' }
+                            border: { display: false },
+                            ticks: {
+                                color: '#64748b',
+                                font: { size: 11, weight: '500', family: "'Plus Jakarta Sans'" },
+                                padding: 6,
+                            }
                         }
                     }
                 }
             });
 
             // --- Doughnut Chart ---
+            const fasilitasLabels = @json($fasilitasChart->pluck('nama'));
+            const fasilitasRaw    = @json($fasilitasChart->pluck('bookings_count'));
+
+            // Chart selalu sama rata per fasilitas (bukan per booking)
+            const chartData = new Array(fasilitasLabels.length).fill(1);
+
+            const chartColors = ['#1265A8','#4292DC','#64748b','#94a3b8','#cbd5e1','#3b82f6','#0ea5e9','#475569'];
+            const totalAktif  = fasilitasRaw.reduce((a, b) => a + b, 0);
+
+            const legendEl = document.getElementById('fasilitasLegend');
+            if (legendEl) {
+                fasilitasLabels.forEach((lbl, i) => {
+                    // Persentase booking tetap dihitung dari data asli
+                    const pct   = totalAktif > 0 ? Math.round(fasilitasRaw[i] / totalAktif * 100) : 0;
+                    const color = chartColors[i % chartColors.length];
+                    legendEl.innerHTML += `
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="width:9px;height:9px;border-radius:2px;background:${color};flex-shrink:0;"></span>
+                        <span style="font-size:11px;font-weight:600;color:#334155;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${lbl}</span>
+                        <div style="width:68px;background:rgba(0,0,0,0.07);border-radius:999px;height:5px;flex-shrink:0;">
+                            <div style="width:${pct}%;height:5px;border-radius:999px;background:${color};"></div>
+                        </div>
+                        <span style="font-size:10px;color:#64748b;min-width:28px;text-align:right;font-weight:600;">${pct}%</span>
+                    </div>`;
+                });
+            }
+
             new Chart(ctxDoughnut, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Asrama Tunggul Ametung', 'Asrama Ken Umang', 'Asrama Kendedes', 'Asrama Ken Arok', 'Asrama Kertajaya', 'Aula Utama'],
+                    labels: fasilitasLabels,
                     datasets: [{
-                        data: [30, 20, 15, 10, 15, 10], // Persentase/Jumlah data
-                        backgroundColor: [
-                            '#1265A8', // Biru Utama
-                            '#4292DC', // Biru Muda
-                            '#94a3b8', // Slate 400
-                            '#cbd5e1', // Slate 300
-                            '#1e293b', // Slate 800
-                            '#e2e8f0'  // Slate 200
-                        ],
-                        borderWidth: 4,
-                        borderColor: '#ffffff',
-                        hoverOffset: 15
+                        data: chartData,
+                        backgroundColor: chartColors.slice(0, fasilitasLabels.length),
+                        borderWidth: 5,
+                        borderColor: 'rgba(255,255,255,0.7)',
+                        hoverOffset: 14,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    cutout: '70%', // Membuat lubang tengah lebih besar 
+                    cutout: '72%',
                     plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 20,
-                                font: { family: "'Plus Jakarta Sans'", size: 11, weight: '600' }
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15,23,42,0.85)',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#f8fafc',
+                            padding: 12,
+                            cornerRadius: 12,
+                            callbacks: {
+                                title: () => '',
+                                label: (ctx) => {
+                                    const pct = totalAktif > 0
+                                        ? Math.round(fasilitasRaw[ctx.dataIndex] / totalAktif * 100)
+                                        : 0;
+                                    return '  ' + ctx.label + ' · ' + pct + '%';
+                                }
                             }
                         }
                     }
@@ -385,23 +529,53 @@
 
         // Animasi Angka (Statistik)
         function animateCounters() {
-            const counters = document.querySelectorAll('.stat-value');
-            counters.forEach(counter => {
-                const target = +counter.getAttribute('data-target');
-                const duration = 1500;
-                const startTime = performance.now();
+            const counters = document.querySelectorAll('.counter-val');
 
-                const updateCount = (currentTime) => {
-                    const elapsedTime = currentTime - startTime;
-                    const progress = Math.min(elapsedTime / duration, 1);
-                    const easeOutQuad = (t) => t * (2 - t);
-                    
-                    counter.innerText = Math.floor(easeOutQuad(progress) * target);
+            const easeOutExpo = t => t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
 
-                    if (progress < 1) requestAnimationFrame(updateCount);
-                    else counter.innerText = target;
-                };
-                requestAnimationFrame(updateCount);
+            counters.forEach((el, idx) => {
+                const target   = +el.getAttribute('data-target');
+                const prefix   = el.getAttribute('data-prefix') || '';
+                const suffix   = el.getAttribute('data-suffix') || '';
+                const duration = 2000;
+                const delay    = idx * 200;
+
+                // Set awal: invisible + geser ke bawah
+                el.style.opacity    = '0';
+                el.style.transform  = 'translateY(16px)';
+                el.style.transition = 'none';
+
+                setTimeout(() => {
+                    // Fade + slide in
+                    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    el.style.opacity    = '1';
+                    el.style.transform  = 'translateY(0)';
+
+                    if (target === 0) {
+                        el.textContent = prefix + '0' + suffix;
+                        return;
+                    }
+
+                    const startTime = performance.now();
+
+                    const tick = (now) => {
+                        const elapsed  = now - startTime;
+                        const progress = Math.min(elapsed / duration, 1);
+                        const eased    = easeOutExpo(progress);
+                        const current  = Math.round(eased * target);
+
+                        el.textContent = prefix + current.toLocaleString('id-ID') + suffix;
+
+                        if (progress < 1) {
+                            requestAnimationFrame(tick);
+                        } else {
+                            el.textContent = prefix + target.toLocaleString('id-ID') + suffix;
+                        }
+                    };
+
+                    requestAnimationFrame(tick);
+
+                }, delay);
             });
         }
 

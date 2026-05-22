@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -15,13 +16,32 @@ class BookingController extends Controller
 {
     public function store(Request $request)
     {
+        // Verifikasi Turnstile (hanya di production)
+        if (app()->environment('production')) {
+            $response = Http::asForm()->post(
+                'https://www.google.com/recaptcha/api/siteverify',
+                [
+                    'secret'   => env('RECAPTCHA_SECRET_KEY'),
+                    'response' => $request->input('g-recaptcha-response'),
+                    'remoteip' => $request->ip(),
+                ]
+            );
+
+            if (!$response->json('success')) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Verifikasi captcha gagal. Silakan coba lagi.'
+                ], 422);
+            }
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'whatsapp' => 'required|string|max:20',
             'email' => 'required|email|max:255',
             'fasilitas_id' => 'required|exists:fasilitas,id',
             'tgl_mulai' => 'required|date',
-            'package_type' => 'required|in:harian,bulanan',
+            'package_type' => 'required|in:harian,mingguan,bulanan,tahunan',
             'duration' => 'required|integer|min:1',
             'adults' => 'required|integer|min:1',
             'rooms_count' => 'required|integer|min:1',
@@ -38,19 +58,20 @@ class BookingController extends Controller
 
         if ($request->package_type === 'harian') {
             $totalPrice = $duration * $fasilitas->harga;
-            $start = \Carbon\Carbon::parse($tgl_mulai);
-            $tgl_selesai = $start->copy()->addDays($duration - 1)->format('Y-m-d');
-        } else {
-            // Bulanan: use dedicated harga_bulanan column
+            $tgl_selesai = \Carbon\Carbon::parse($tgl_mulai)->addDays($duration - 1)->format('Y-m-d');
+        } elseif ($request->package_type === 'mingguan') {
+            $totalPrice = $duration * $fasilitas->harga * 7;
+            $tgl_selesai = \Carbon\Carbon::parse($tgl_mulai)->addWeeks($duration)->subDay()->format('Y-m-d');
+        } elseif ($request->package_type === 'bulanan') {
             if (!$fasilitas->harga_bulanan) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Fasilitas ini tidak mendukung paket bulanan.'
-                ], 422);
+                return response()->json(['success' => false, 'message' => 'Fasilitas ini tidak mendukung paket bulanan.'], 422);
             }
             $totalPrice = $duration * $fasilitas->harga_bulanan;
-            $start = \Carbon\Carbon::parse($tgl_mulai);
-            $tgl_selesai = $start->copy()->addMonths($duration)->subDay()->format('Y-m-d');
+            $tgl_selesai = \Carbon\Carbon::parse($tgl_mulai)->addMonths($duration)->subDay()->format('Y-m-d');
+        } elseif ($request->package_type === 'tahunan') {
+            $hargaTahunan = $fasilitas->harga_bulanan ? $fasilitas->harga_bulanan * 12 : $fasilitas->harga * 365;
+            $totalPrice = $duration * $hargaTahunan;
+            $tgl_selesai = \Carbon\Carbon::parse($tgl_mulai)->addYears($duration)->subDay()->format('Y-m-d');
         }
 
         // --- VALIDASI OVERLAP ---

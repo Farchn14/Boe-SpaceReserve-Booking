@@ -34,6 +34,11 @@ class Fasilitas extends Model
         'labels' => 'array',
     ];
 
+    public function bookings()
+    {
+        return $this->hasMany(\App\Models\Booking::class, 'fasilitas_id');
+    }
+
     public function histories()
     {
         return $this->hasMany(HargaSewaHistory::class, 'fasilitas_id');
