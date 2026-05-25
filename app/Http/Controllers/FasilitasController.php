@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Fasilitas; 
+use App\Models\Fasilitas;
+use App\Models\RoomType;
+use App\Models\Room;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -173,95 +176,132 @@ class FasilitasController extends Controller
     {
         try {
             $request->validate([
-                'nama' => 'required|string|max:255',
-                'tipe' => 'required|in:asrama,aula',
-                'deskripsi' => 'required',
-                'detail' => 'nullable',
-                'harga' => 'required|numeric',
-                'harga_bulanan' => 'nullable|numeric',
-                'max_dewasa' => 'nullable|integer',
-                'max_anak' => 'nullable|integer',
+                'nama'              => 'required|string|max:255',
+                'tipe'              => 'required|in:asrama,aula',
+                'deskripsi'         => 'required',
+                'jam_operasional'   => 'nullable|string',
                 'max_durasi_harian' => 'nullable|integer',
-                'jam_operasional' => 'nullable|string',
-                'image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'gallery.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-                'paket_harian' => 'nullable|string',
-                'labels' => 'nullable|array',
+                'image'             => 'required|image|mimes:jpeg,png,jpg|max:2048',
+
+                'room_types'                    => 'required|array|min:1',
+                'room_types.*.nama'             => 'required|string|max:255',
+                'room_types.*.deskripsi'        => 'nullable|string',
+                'room_types.*.max_dewasa'       => 'nullable|integer|min:0',
+                'room_types.*.max_anak'         => 'nullable|integer|min:0',
+                'room_types.*.harga_harian'     => 'required|numeric|min:0',
+                'room_types.*.harga_mingguan'   => 'nullable|numeric|min:0',
+                'room_types.*.harga_bulanan'    => 'nullable|numeric|min:0',
+                'room_types.*.harga_tahunan'    => 'nullable|numeric|min:0',
+                'room_types.*.stok'             => 'required|integer|min:1',
+                'room_types.*.nomor_kamar'      => 'nullable|array',
+                'room_types.*.gallery.*'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'room_types.*.labels'           => 'nullable|array',
             ]);
+
+            DB::beginTransaction();
 
             $imageName = null;
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $path = $image->store('fasilitas', 'public'); 
+                $path = $image->store('fasilitas', 'public');
                 $imageName = basename($path);
             }
 
-            $gallery = [];
-            if ($request->hasFile('gallery')) {
-                foreach ($request->file('gallery') as $index => $file) {
-                    if ($file) {
-                        $path = $file->store('fasilitas/gallery', 'public');
-                        $gallery[$index] = basename($path);
-                    }
-                }
+            $allPrices = [];
+            foreach ($request->room_types as $rt) {
+                $allPrices[] = (float) $rt['harga_harian'];
+                if (!empty($rt['harga_mingguan'])) $allPrices[] = (float) $rt['harga_mingguan'];
+                if (!empty($rt['harga_bulanan'])) $allPrices[] = (float) $rt['harga_bulanan'];
+                if (!empty($rt['harga_tahunan'])) $allPrices[] = (float) $rt['harga_tahunan'];
             }
-            $gallery = array_values(array_filter($gallery));
 
-            $paket_harian = [];
-            
-            // Calculate thumbnail price range
-            $h_harian = (float) $request->harga;
-            $h_bulanan = $request->harga_bulanan ? (float) $request->harga_bulanan : null;
-
-            $prices = [$h_harian];
-            if ($h_bulanan) $prices[] = $h_bulanan;
-            
-            $minPrice = min($prices);
-            $maxPrice = max($prices);
-
-            $formatPrice = function($price) {
+            $formatPrice = function ($price) {
                 if ($price >= 1000000) return round($price / 1000000, 1) . 'JT';
                 if ($price >= 1000) return round($price / 1000) . 'K';
                 return $price;
             };
 
-            $harga_thumbnail = (count($prices) > 1) 
+            $minPrice = min($allPrices);
+            $maxPrice = max($allPrices);
+            $harga_thumbnail = ($minPrice !== $maxPrice)
                 ? "Mulai " . $formatPrice($minPrice) . " - " . $formatPrice($maxPrice)
-                : "Rp " . number_format($h_harian, 0, ',', '.');
+                : "Rp " . number_format($minPrice, 0, ',', '.');
 
-            $newFasilitas = Fasilitas::create([
-                'nama' => $request->nama,
-                'tipe' => $request->tipe,
-                'deskripsi' => $request->deskripsi,
-                'detail' => $request->detail,
-                'harga' => $h_harian,
-                'harga_bulanan' => $h_bulanan,
-                'max_dewasa' => $request->max_dewasa,
-                'max_anak' => $request->max_anak,
+            $fasilitas = Fasilitas::create([
+                'nama'              => $request->nama,
+                'tipe'              => $request->tipe,
+                'deskripsi'         => $request->deskripsi,
+                'detail'            => $request->detail,
+                'harga'             => $minPrice,
+                'harga_bulanan'     => null,
+                'max_dewasa'        => null,
+                'max_anak'          => null,
                 'max_durasi_harian' => $request->max_durasi_harian,
-                'jam_operasional' => $request->jam_operasional,
-                'image' => $imageName, 
-                'gallery' => $gallery,
-                'paket_harian' => $paket_harian,
-                'labels' => $request->labels ?? [],
-                'harga_thumbnail' => $harga_thumbnail,
+                'jam_operasional'   => $request->jam_operasional,
+                'image'             => $imageName,
+                'gallery'           => [],
+                'paket_harian'      => [],
+                'labels'            => [],
+                'harga_thumbnail'   => $harga_thumbnail,
             ]);
 
-            // Audit Log
+            foreach ($request->room_types as $index => $rtData) {
+                $gallery = [];
+                $fileKey = "room_types.{$index}.gallery";
+
+                if ($request->hasFile("room_types.{$index}.gallery")) {
+                    foreach ($request->file("room_types.{$index}.gallery") as $gi => $file) {
+                        if ($file) {
+                            $path = $file->store('fasilitas/gallery', 'public');
+                            $gallery[] = basename($path);
+                        }
+                    }
+                }
+
+                $roomType = RoomType::create([
+                    'fasilitas_id'   => $fasilitas->id,
+                    'nama'           => $rtData['nama'],
+                    'deskripsi'      => $rtData['deskripsi'] ?? null,
+                    'max_dewasa'     => $rtData['max_dewasa'] ?? 0,
+                    'max_anak'       => $rtData['max_anak'] ?? 0,
+                    'harga_harian'   => $rtData['harga_harian'],
+                    'harga_mingguan' => $rtData['harga_mingguan'] ?? null,
+                    'harga_bulanan'  => $rtData['harga_bulanan'] ?? null,
+                    'harga_tahunan'  => $rtData['harga_tahunan'] ?? null,
+                    'gallery'        => $gallery,
+                    'labels'         => $rtData['labels'] ?? [],
+                    'stok'           => $rtData['stok'],
+                ]);
+
+                $nomorList = $rtData['nomor_kamar'] ?? [];
+                $stok = (int) $rtData['stok'];
+
+                for ($r = 0; $r < $stok; $r++) {
+                    Room::create([
+                        'room_type_id' => $roomType->id,
+                        'nomor_kamar'  => $nomorList[$r] ?? ($rtData['nama'] . ' - ' . ($r + 1)),
+                    ]);
+                }
+            }
+
+            DB::commit();
+
             AuditLog::catat(
                 'Tambah Fasilitas',
                 "Menambahkan fasilitas baru: {$request->nama}",
-                ['target_tipe' => 'fasilitas', 'target_id' => $newFasilitas->id, 'fasilitas_nama' => $request->nama]
+                ['target_tipe' => 'fasilitas', 'target_id' => $fasilitas->id, 'fasilitas_nama' => $request->nama]
             );
 
             return response()->json(['success' => 'Data fasilitas berhasil disimpan!']);
         } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
             return response()->json([
                 'success' => false,
                 'message' => 'Validasi gagal: ' . implode(', ', \Illuminate\Support\Arr::flatten($e->errors())),
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            DB::rollBack();
             \Log::error('Fasilitas Store Error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
