@@ -51,8 +51,8 @@
 
                     {{-- Type Switcher --}}
                     <div class="flex justify-center gap-4 mt-8">
-                        <button type="button" @click="tipe = 'asrama'; selectedLabels = []" :class="tipe === 'asrama' ? 'bg-[#1d6fa5] text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'" class="px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300">Asrama</button>
-                        <button type="button" @click="tipe = 'aula'; selectedLabels = []" :class="tipe === 'aula' ? 'bg-[#1d6fa5] text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'" class="px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300">Aula</button>
+                        <button type="button" @click="tipe = 'asrama'" :class="tipe === 'asrama' ? 'bg-[#1d6fa5] text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'" class="px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300">Asrama</button>
+                        <button type="button" @click="tipe = 'aula'" :class="tipe === 'aula' ? 'bg-[#1d6fa5] text-white shadow-lg' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'" class="px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300">Aula</button>
                     </div>
                 </div>
 
@@ -81,26 +81,9 @@
                                     <input type="number" x-model="max_durasi_harian" class="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#1d6fa5] outline-none transition-all duration-300 shadow-sm font-semibold">
                                 </div>
                             </div>
-
-                            {{-- Labels / General Facilities --}}
-                            <div class="group">
-                                <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Fasilitas Umum</label>
-                                <div class="flex flex-wrap gap-2 mb-3">
-                                    <template x-for="label in labelOptions[tipe]" :key="label">
-                                        <label class="cursor-pointer">
-                                            <input type="checkbox" :value="label" x-model="selectedLabels" class="hidden">
-                                            <span :class="selectedLabels.includes(label) ? 'bg-[#1d6fa5] text-white border-[#1d6fa5]' : 'bg-white text-slate-400 border-slate-200'" class="px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all duration-300 block" x-text="label"></span>
-                                        </label>
-                                    </template>
-                                </div>
-                                <div class="flex gap-2">
-                                    <input type="text" x-model="customLabel" @keydown.enter.prevent="addCustomLabel()" placeholder="Tambah fitur custom..." class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold outline-none focus:border-[#1d6fa5] transition-all">
-                                    <button type="button" @click="addCustomLabel()" class="px-4 py-2 bg-[#1d6fa5] text-white rounded-xl hover:bg-slate-800 transition-all font-black text-sm">+</button>
-                                </div>
-                            </div>
                         </div>
 
-                        {{-- Right Column: Thumbnail --}}
+                        {{-- Right Column: Thumbnail + Number of Types --}}
                         <div class="space-y-6">
                             <div class="w-full">
                                 <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Thumbnail Cards</label>
@@ -162,17 +145,18 @@
                     <div x-show="currentSlide === idx" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-x-4" x-transition:enter-end="opacity-100 translate-x-0" class="p-8 lg:p-12 pt-4">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
 
-                            {{-- Left: Photo Gallery + Name + Description --}}
+                            {{-- Left Column --}}
                             <div class="space-y-6">
                                 {{-- 3-Slot Photo Gallery --}}
                                 <div>
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Foto Tipe Kamar (3 Foto)</label>
+                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Foto Tipe Kamar (3 Foto, Max 2MB)</label>
                                     <div class="grid grid-cols-3 gap-3">
                                         <template x-for="gi in [0, 1, 2]" :key="gi">
                                             <div class="relative overflow-hidden rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:border-[#1d6fa5] transition-all duration-500 h-32 flex items-center justify-center group/gal cursor-pointer">
                                                 <img :src="rt.galleryPreviews[gi]" class="absolute inset-0 w-full h-full object-cover z-10" x-show="rt.galleryPreviews[gi]">
                                                 <div class="relative z-20 flex flex-col items-center" x-show="!rt.galleryPreviews[gi]">
                                                     <svg class="w-5 h-5 text-slate-300 group-hover/gal:text-[#1d6fa5] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                                    <span class="text-[8px] font-bold text-slate-300 mt-1" x-text="gi === 0 ? 'THUMBNAIL' : 'FOTO ' + (gi + 1)"></span>
                                                 </div>
                                                 <input type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-30" @change="handleRoomGallery($event, idx, gi)">
                                             </div>
@@ -188,6 +172,16 @@
                                 <div class="group">
                                     <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Deskripsi Tipe</label>
                                     <textarea x-model="rt.deskripsi" rows="3" class="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#1d6fa5] outline-none transition-all duration-300 shadow-sm resize-none font-medium leading-relaxed" placeholder="Deskripsi spesifik untuk tipe kamar ini..."></textarea>
+                                </div>
+
+                                {{-- Max Rooms with +/- and manual input --}}
+                                <div class="group">
+                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Max Rooms (Stok Unit)</label>
+                                    <div class="flex items-center gap-3">
+                                        <button type="button" @click="rt.stok = Math.max(1, rt.stok - 1); generateRoomNumbers(idx)" class="w-12 h-12 flex items-center justify-center rounded-2xl border-2 border-slate-200 bg-white hover:border-red-300 hover:bg-red-50 transition-all text-xl font-black text-slate-400 hover:text-red-500">-</button>
+                                        <input type="number" x-model.number="rt.stok" min="1" @input="generateRoomNumbers(idx)" class="flex-1 px-6 py-4 bg-white border border-slate-200 rounded-2xl text-center font-bold text-lg focus:ring-4 focus:ring-blue-100 focus:border-[#1d6fa5] outline-none transition-all" required>
+                                        <button type="button" @click="rt.stok++; generateRoomNumbers(idx)" class="w-12 h-12 flex items-center justify-center rounded-2xl border-2 border-slate-200 bg-white hover:border-[#1d6fa5] hover:bg-blue-50 transition-all text-xl font-black text-slate-400 hover:text-[#1d6fa5]">+</button>
+                                    </div>
                                 </div>
 
                                 {{-- Capacity: Adult & Child with +/- --}}
@@ -209,9 +203,26 @@
                                         </div>
                                     </div>
                                 </div>
+
+                                {{-- Labels / Features (per room type) --}}
+                                <div class="group">
+                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Labels / Fitur</label>
+                                    <div class="flex flex-wrap gap-2 mb-3">
+                                        <template x-for="label in labelOptions[tipe]" :key="label">
+                                            <label class="cursor-pointer">
+                                                <input type="checkbox" :value="label" x-model="rt.selectedLabels" class="hidden">
+                                                <span :class="rt.selectedLabels.includes(label) ? 'bg-[#1d6fa5] text-white border-[#1d6fa5]' : 'bg-white text-slate-400 border-slate-200'" class="px-4 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all duration-300 block" x-text="label"></span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <input type="text" x-model="rt.customLabel" @keydown.enter.prevent="addCustomLabel(idx)" placeholder="Tambah fitur custom..." class="flex-1 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-bold outline-none focus:border-[#1d6fa5] transition-all">
+                                        <button type="button" @click="addCustomLabel(idx)" class="px-4 py-2 bg-[#1d6fa5] text-white rounded-xl hover:bg-slate-800 transition-all font-black text-sm">+</button>
+                                    </div>
+                                </div>
                             </div>
 
-                            {{-- Right: Pricing + Stock + Room Numbers --}}
+                            {{-- Right Column: Pricing + Room Numbers --}}
                             <div class="space-y-6">
                                 {{-- 4-Tier Pricing --}}
                                 <div>
@@ -232,16 +243,10 @@
                                     </div>
                                 </div>
 
-                                {{-- Stock --}}
-                                <div class="group">
-                                    <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Jumlah Stok (Unit)</label>
-                                    <input type="number" x-model.number="rt.stok" min="1" @input="generateRoomNumbers(idx)" class="w-full px-6 py-4 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#1d6fa5] outline-none transition-all duration-300 shadow-sm font-semibold" required>
-                                </div>
-
                                 {{-- Dynamic Room Numbers --}}
                                 <div x-show="rt.stok > 0" x-transition class="space-y-3">
                                     <label class="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Nomor Kamar</label>
-                                    <div class="max-h-48 overflow-y-auto space-y-2 pr-2 scrollbar-thin">
+                                    <div class="max-h-64 overflow-y-auto space-y-2 pr-2 scrollbar-thin">
                                         <template x-for="(room, ri) in rt.nomor_kamar" :key="ri">
                                             <div class="flex items-center gap-3" style="animation: fadeIn 0.3s ease forwards">
                                                 <span class="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-xs font-black text-[#1d6fa5]" x-text="ri + 1"></span>
@@ -319,8 +324,6 @@
                 deskripsi: '',
                 jam_operasional: '',
                 max_durasi_harian: '',
-                selectedLabels: [],
-                customLabel: '',
                 thumbnailPreview: null,
                 thumbnailFile: null,
 
@@ -350,6 +353,8 @@
                         nomor_kamar: [''],
                         galleryPreviews: [null, null, null],
                         galleryFiles: [null, null, null],
+                        selectedLabels: [],
+                        customLabel: '',
                     };
                 },
 
@@ -374,16 +379,17 @@
                     if (this.currentSlide < this.roomTypes.length - 1) this.currentSlide++;
                 },
 
-                addCustomLabel() {
-                    if (this.customLabel.trim() !== '') {
-                        const label = this.customLabel.trim();
+                addCustomLabel(idx) {
+                    const rt = this.roomTypes[idx];
+                    if (rt.customLabel.trim() !== '') {
+                        const label = rt.customLabel.trim();
                         if (!this.labelOptions[this.tipe].includes(label)) {
                             this.labelOptions[this.tipe].push(label);
                         }
-                        if (!this.selectedLabels.includes(label)) {
-                            this.selectedLabels.push(label);
+                        if (!rt.selectedLabels.includes(label)) {
+                            rt.selectedLabels.push(label);
                         }
-                        this.customLabel = '';
+                        rt.customLabel = '';
                     }
                 },
 
@@ -488,8 +494,6 @@
                     formData.append('jam_operasional', this.jam_operasional || '');
                     formData.append('max_durasi_harian', this.max_durasi_harian || '');
 
-                    this.selectedLabels.forEach((l, i) => formData.append(`labels[${i}]`, l));
-
                     if (this.thumbnailFile) {
                         formData.append('image', this.thumbnailFile);
                     }
@@ -504,6 +508,10 @@
                         formData.append(`room_types[${idx}][harga_bulanan]`, rt.harga_bulanan || '');
                         formData.append(`room_types[${idx}][harga_tahunan]`, rt.harga_tahunan || '');
                         formData.append(`room_types[${idx}][stok]`, rt.stok);
+
+                        rt.selectedLabels.forEach((l, li) => {
+                            formData.append(`room_types[${idx}][labels][${li}]`, l);
+                        });
 
                         rt.nomor_kamar.forEach((n, ri) => {
                             formData.append(`room_types[${idx}][nomor_kamar][${ri}]`, n || (rt.nama + ' - ' + (ri + 1)));

@@ -179,7 +179,6 @@ class FasilitasController extends Controller
                 'nama'              => 'required|string|max:255',
                 'tipe'              => 'required|in:asrama,aula',
                 'deskripsi'         => 'required',
-                'labels'            => 'nullable|array',
                 'jam_operasional'   => 'nullable|string',
                 'max_durasi_harian' => 'nullable|integer',
                 'image'             => 'required|image|mimes:jpeg,png,jpg|max:2048',
@@ -196,6 +195,7 @@ class FasilitasController extends Controller
                 'room_types.*.stok'             => 'required|integer|min:1',
                 'room_types.*.nomor_kamar'      => 'nullable|array',
                 'room_types.*.gallery.*'        => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+                'room_types.*.labels'           => 'nullable|array',
             ]);
 
             DB::beginTransaction();
@@ -241,7 +241,7 @@ class FasilitasController extends Controller
                 'image'             => $imageName,
                 'gallery'           => [],
                 'paket_harian'      => [],
-                'labels'            => $request->labels ?? [],
+                'labels'            => [],
                 'harga_thumbnail'   => $harga_thumbnail,
             ]);
 
@@ -269,6 +269,7 @@ class FasilitasController extends Controller
                     'harga_bulanan'  => $rtData['harga_bulanan'] ?? null,
                     'harga_tahunan'  => $rtData['harga_tahunan'] ?? null,
                     'gallery'        => $gallery,
+                    'labels'         => $rtData['labels'] ?? [],
                     'stok'           => $rtData['stok'],
                 ]);
 

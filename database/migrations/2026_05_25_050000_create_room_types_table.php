@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('harga_bulanan', 15, 2)->nullable();
             $table->decimal('harga_tahunan', 15, 2)->nullable();
             $table->json('gallery')->nullable();
+            $table->json('labels')->nullable();
             $table->integer('stok')->default(0);
             $table->timestamps();
 

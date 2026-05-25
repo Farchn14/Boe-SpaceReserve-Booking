@@ -19,11 +19,13 @@ class RoomType extends Model
         'harga_bulanan',
         'harga_tahunan',
         'gallery',
+        'labels',
         'stok',
     ];
 
     protected $casts = [
         'gallery' => 'array',
+        'labels' => 'array',
     ];
 
     public function fasilitas()
