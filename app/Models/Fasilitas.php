@@ -37,4 +37,9 @@ class Fasilitas extends Model
     {
         return $this->hasMany(HargaSewaHistory::class, 'fasilitas_id');
     }
+
+    public function roomTypes()
+    {
+        return $this->hasMany(RoomType::class, 'fasilitas_id');
+    }
 }
